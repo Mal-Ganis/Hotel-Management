@@ -4,7 +4,9 @@ import com.hotelsystem.dto.UserDto;
 import com.hotelsystem.entity.User;
 import com.hotelsystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,9 +14,10 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class UserService {
-
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // 获取所有用户
     public List<UserDto> getAllUsers() {
@@ -42,6 +45,12 @@ public class UserService {
         }
 
         User user = userDto.toEntity();
+        if (userDto.getPassword() != null && !userDto.getPassword().trim().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        } else {
+            throw new RuntimeException("密码不能为空");
+        }
+
         User savedUser = userRepository.save(user);
         return UserDto.fromEntity(savedUser);
     }
@@ -70,6 +79,11 @@ public class UserService {
         existingUser.setRole(userDto.getRole());
         existingUser.setIsActive(userDto.getIsActive());
 
+        // 如果提供了新密码，则加密并更新
+        if (userDto.getPassword() != null && !userDto.getPassword().trim().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        }
+
         User updatedUser = userRepository.save(existingUser);
         return UserDto.fromEntity(updatedUser);
     }
@@ -87,4 +101,30 @@ public class UserService {
         return userRepository.findByUsername(username)
                 .map(UserDto::fromEntity);
     }
+
+    // 更改用户密码
+    public void changePassword(Long id, String oldPassword, String newPassword) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        // 验证旧密码
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("原密码错误");
+        }
+
+        // 加密新密码
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    // 重置用户密码
+    public void resetPassword(Long id, String newPassword) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        // 加密新密码
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
 }

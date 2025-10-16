@@ -17,6 +17,10 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
+jwt:
+  secret: "hotelSystemSecretKey2025ForJWTTokenGenerationWith32BytesLength!"
+  expiration: 86400000  # 24小时，单位毫秒  
+    
 logging:
   level:
     com.hotelsystem: DEBUG
