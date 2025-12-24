@@ -18,7 +18,9 @@ public class UserDto {
     private String username;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @NotBlank(message = "密码不能为空")
+    // 注意：密码在创建时必填，在更新时可选
+    // 使用 @Size 而不是 @NotBlank，这样空值不会触发验证
+    // 创建时的验证在 Controller 或 Service 层手动检查
     @Size(min = 6, message = "密码长度至少6个字符")
     private String password;
 

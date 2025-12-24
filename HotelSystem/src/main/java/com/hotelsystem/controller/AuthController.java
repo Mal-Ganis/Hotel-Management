@@ -36,12 +36,44 @@ public class AuthController {
             );
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+            
+            // 验证角色：如果请求中指定了角色，需要验证用户的实际角色是否匹配
+            if (request.getRole() != null && !request.getRole().isEmpty()) {
+                // 从数据库中获取用户的实际角色（更准确）
+                var userOpt = userService.getUserByUsername(request.getUsername());
+                if (userOpt.isEmpty()) {
+                    return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("用户不存在"));
+                }
+                
+                User.UserRole actualRole = userOpt.get().getRole();
+                String requestedRole = request.getRole().toUpperCase();
+                
+                // 如果请求的角色与实际角色不匹配，拒绝登录
+                if (actualRole == null || !actualRole.name().equals(requestedRole)) {
+                    String actualRoleName = actualRole != null ? actualRole.name() : "未知";
+                    return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error(
+                            "角色不匹配：您的实际角色是 " + getRoleDisplayName(actualRoleName) + 
+                            "，但选择了 " + getRoleDisplayName(requestedRole) + "。请选择正确的角色登录。"));
+                }
+            }
+            
             String token = jwtUtil.generateToken(userDetails);
             
             // 返回统一格式的响应
-            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("登录成功", new AuthResponse(token)));
+            com.hotelsystem.dto.AuthResponse authResponse = new AuthResponse(token);
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("登录成功", authResponse));
         } catch (Exception e) {
             return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("登录失败: " + e.getMessage()));
+        }
+    }
+    
+    private String getRoleDisplayName(String role) {
+        switch (role) {
+            case "ADMIN": return "管理员";
+            case "MANAGER": return "经理";
+            case "RECEPTIONIST": return "前台";
+            case "HOUSEKEEPING": return "房务";
+            default: return role;
         }
     }
 

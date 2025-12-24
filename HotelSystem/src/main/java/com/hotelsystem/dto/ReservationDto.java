@@ -45,7 +45,15 @@ public class ReservationDto {
         dto.setId(reservation.getId());
         dto.setReservationNumber(reservation.getReservationNumber());
         dto.setGuestId(reservation.getGuest().getId());
+        // 设置关联的宾客对象
+        if (reservation.getGuest() != null) {
+            dto.setGuest(GuestDto.fromEntity(reservation.getGuest()));
+        }
         dto.setRoomId(reservation.getRoom() != null ? reservation.getRoom().getId() : null);
+        // 设置关联的房间对象
+        if (reservation.getRoom() != null) {
+            dto.setRoom(RoomDto.fromEntity(reservation.getRoom()));
+        }
         dto.setPreferredRoomType(reservation.getPreferredRoomType());
         dto.setCheckInDate(reservation.getCheckInDate());
         dto.setCheckOutDate(reservation.getCheckOutDate());

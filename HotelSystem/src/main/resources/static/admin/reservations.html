@@ -76,7 +76,7 @@
             <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
-            <a href="http://localhost:8081/admin/users.html">员工管理</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -114,28 +114,54 @@
     </div>
 
     <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
     <script>
         // 检查登录状态
         if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
             alert('请先登录');
             window.location.href = 'http://localhost:8081/admin/login.html';
         }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问预订管理 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问预订管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
 
         async function loadReservations() {
+            const container = document.getElementById('reservationsContainer');
             try {
-                const response = await api.get('/reservations');
-                if (response.success) {
-                    displayReservations(response.data || []);
-                }
+                const reservationList = await reservations.getAll();
+                displayReservations(reservationList);
             } catch (error) {
-                document.getElementById('reservationsContainer').innerHTML = 
-                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+                console.error('加载预订失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
             }
         }
 
         function displayReservations(reservationList) {
             const container = document.getElementById('reservationsContainer');
-            if (reservationList.length === 0) {
+            if (!reservationList || reservationList.length === 0) {
                 container.innerHTML = '<div class="alert">暂无预订记录</div>';
                 return;
             }
@@ -158,11 +184,11 @@
                     <tbody>
                         ${reservationList.map(r => `
                             <tr>
-                                <td>${r.reservationNumber}</td>
-                                <td>${r.guestName || '未知'}</td>
-                                <td>${r.roomNumber || '未分配'}</td>
-                                <td>${r.checkInDate}</td>
-                                <td>${r.checkOutDate}</td>
+                                <td>${r.reservationNumber || '-'}</td>
+                                <td>${r.guest ? r.guest.fullName : '未知'}</td>
+                                <td>${r.room ? r.room.roomNumber : '未分配'}</td>
+                                <td>${r.checkInDate || '-'}</td>
+                                <td>${r.checkOutDate || '-'}</td>
                                 <td>¥${r.totalAmount || 0}</td>
                                 <td>¥${r.paidAmount || 0}</td>
                                 <td><span class="badge badge-${getStatusClass(r.status)}">${getStatusText(r.status)}</span></td>
@@ -199,10 +225,10 @@
         }
 
         function getActionButtons(reservation) {
-            const role = auth.getUserRole();
             let buttons = '';
 
-            if (role === 'RECEPTIONIST' || role === 'MANAGER' || role === 'ADMIN') {
+            // 办理入住/退房 - 前台、经理、管理员可以操作
+            if (permissions.isReceptionistOrAbove()) {
                 if (reservation.status === 'CONFIRMED') {
                     buttons += `<button class="btn btn-success" onclick="checkIn(${reservation.id})">办理入住</button> `;
                 }
@@ -211,37 +237,70 @@
                 }
             }
 
+            // 删除预订 - 仅经理和管理员可以操作
+            if (permissions.isManagerOrAdmin() && reservation.status !== 'CHECKED_OUT') {
+                buttons += `<button class="btn btn-danger" onclick="deleteReservation(${reservation.id})">删除</button> `;
+            }
+
             return buttons || '-';
+        }
+        
+        async function deleteReservation(id) {
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '删除预订')) {
+                return;
+            }
+            if (!confirm('确定要删除此预订吗？删除后无法恢复！')) return;
+            
+            try {
+                const response = await api.delete(`/reservations/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadReservations();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除预订失败:', error);
+                alert('删除失败: ' + error.message);
+            }
         }
 
         async function checkIn(reservationId) {
+            if (!permissions.checkPermission(['RECEPTIONIST', 'MANAGER', 'ADMIN'], '办理入住')) {
+                return;
+            }
             if (!confirm('确认办理入住？')) return;
 
             try {
-                const response = await api.post(`/frontdesk/checkin/${reservationId}`, {});
-                if (response.success) {
+                const response = await reservations.checkIn(reservationId, {});
+                if (response && response.success) {
                     alert('入住办理成功');
                     await loadReservations();
                 } else {
-                    alert('办理失败: ' + response.message);
+                    alert('办理失败: ' + (response?.message || '未知错误'));
                 }
             } catch (error) {
+                console.error('办理入住失败:', error);
                 alert('办理失败: ' + error.message);
             }
         }
 
         async function checkOut(reservationId) {
+            if (!permissions.checkPermission(['RECEPTIONIST', 'MANAGER', 'ADMIN'], '办理退房')) {
+                return;
+            }
             if (!confirm('确认办理退房？')) return;
 
             try {
-                const response = await api.post(`/frontdesk/checkout/${reservationId}`, {});
-                if (response.success) {
+                const response = await reservations.checkOut(reservationId, {});
+                if (response && response.success) {
                     alert('退房办理成功');
                     await loadReservations();
                 } else {
-                    alert('办理失败: ' + response.message);
+                    alert('办理失败: ' + (response?.message || '未知错误'));
                 }
             } catch (error) {
+                console.error('办理退房失败:', error);
                 alert('办理失败: ' + error.message);
             }
         }

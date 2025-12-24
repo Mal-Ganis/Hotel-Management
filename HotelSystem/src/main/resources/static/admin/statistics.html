@@ -90,7 +90,7 @@
             <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" class="active">统计报表</a>
-            <a href="http://localhost:8081/admin/users.html">员工管理</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -121,11 +121,67 @@
     </div>
 
     <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
     <script>
         // 检查登录状态
         if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
             alert('请先登录');
             window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单和功能
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问统计报表 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问统计报表');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+        
+        // 房务不能查看日期范围统计
+        async function loadDateRangeStats() {
+            if (auth.getUserRole() === 'HOUSEKEEPING') {
+                alert('权限不足：房务无法查看日期范围统计');
+                return;
+            }
+            
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('请选择日期范围');
+                return;
+            }
+
+            const container = document.getElementById('rangeStats');
+            try {
+                const response = await api.get(`/api/statistics/date-range?startDate=${startDate}&endDate=${endDate}`);
+                if (response && response.success) {
+                    displayRangeStats(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载失败: ${response?.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                console.error('加载日期范围统计失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
         }
 
         // 设置默认日期
@@ -135,14 +191,17 @@
         document.getElementById('endDate').value = today;
 
         async function loadTodayStats() {
+            const container = document.getElementById('todayStats');
             try {
                 const response = await api.get('/api/statistics/today');
-                if (response.success) {
+                if (response && response.success) {
                     displayTodayStats(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载失败: ${response?.message || '未知错误'}</div>`;
                 }
             } catch (error) {
-                document.getElementById('todayStats').innerHTML = 
-                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+                console.error('加载今日统计失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
             }
         }
 
@@ -174,26 +233,6 @@
                     <div class="value">${(stats.occupancyRate || 0).toFixed(1)}%</div>
                 </div>
             `;
-        }
-
-        async function loadDateRangeStats() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-
-            if (!startDate || !endDate) {
-                alert('请选择日期范围');
-                return;
-            }
-
-            try {
-                const response = await api.get(`/api/statistics/date-range?startDate=${startDate}&endDate=${endDate}`);
-                if (response.success) {
-                    displayRangeStats(response.data);
-                }
-            } catch (error) {
-                document.getElementById('rangeStats').innerHTML = 
-                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
-            }
         }
 
         function displayRangeStats(stats) {
