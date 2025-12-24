@@ -194,6 +194,14 @@ const users = {
         return response.data || [];
     },
 
+    async getById(id) {
+        const response = await api.get(`/users/${id}`);
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '获取用户失败');
+    },
+
     async create(userData) {
         const response = await api.post('/users', userData);
         return response.data;
