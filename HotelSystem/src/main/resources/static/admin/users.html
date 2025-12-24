@@ -49,6 +49,50 @@
             justify-content: space-between;
             align-items: center;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: #667eea;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +125,59 @@
             <div id="usersContainer">
                 <div class="loading">加载中...</div>
             </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑员工模态框 -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加员工</h3>
+                <button class="close-btn" onclick="closeUserModal()">&times;</button>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label>用户名 <span style="color:red;">*</span></label>
+                    <input type="text" id="username" required maxlength="50">
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label>密码 <span style="color:red;">*</span></label>
+                    <input type="password" id="password" required minlength="6">
+                    <small style="color:#666;">至少6个字符</small>
+                </div>
+                <div class="form-group">
+                    <label>姓名 <span style="color:red;">*</span></label>
+                    <input type="text" id="fullName" required maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>邮箱 <span style="color:red;">*</span></label>
+                    <input type="email" id="email" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="text" id="phone" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>角色 <span style="color:red;">*</span></label>
+                    <select id="role" required>
+                        <option value="RECEPTIONIST">前台</option>
+                        <option value="HOUSEKEEPING">房务</option>
+                        <option value="MANAGER">经理</option>
+                        <option value="ADMIN">管理员</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isActive" checked>
+                        启用
+                    </label>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeUserModal()" style="flex:1;">取消</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -152,18 +249,131 @@
             return roleMap[role] || role;
         }
 
+        let editingUserId = null;
+
         function openAddUserModal() {
-            alert('添加员工功能待实现');
+            editingUserId = null;
+            document.getElementById('modalTitle').textContent = '添加员工';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('username').readOnly = false;
+            document.getElementById('username').required = true;
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password').required = true;
+            document.getElementById('password').value = '';
+            document.getElementById('password').placeholder = '';
+            document.getElementById('isActive').checked = true;
+            document.getElementById('userModal').classList.add('active');
         }
 
-        function editUser(id) {
-            alert('编辑员工功能待实现');
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+            editingUserId = null;
+            document.getElementById('userForm').reset();
         }
 
-        function deleteUser(id) {
-            if (!confirm('确定要删除此员工吗？')) return;
-            alert('删除员工功能待实现');
+        async function editUser(id) {
+            try {
+                const response = await api.get(`/users/${id}`);
+                if (response && response.success && response.data) {
+                    const user = response.data;
+                    editingUserId = id;
+                    document.getElementById('modalTitle').textContent = '编辑员工';
+                    document.getElementById('userId').value = user.id;
+                    document.getElementById('username').value = user.username || '';
+                    document.getElementById('username').readOnly = true;
+                    document.getElementById('passwordGroup').style.display = 'block';
+                    document.getElementById('password').required = false;
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').placeholder = '留空则不修改密码';
+                    document.getElementById('fullName').value = user.fullName || '';
+                    document.getElementById('email').value = user.email || '';
+                    document.getElementById('phone').value = user.phone || '';
+                    document.getElementById('role').value = user.role || 'RECEPTIONIST';
+                    document.getElementById('isActive').checked = user.isActive !== false;
+                    document.getElementById('userModal').classList.add('active');
+                } else {
+                    alert('加载员工信息失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('加载用户失败:', error);
+                alert('加载失败: ' + error.message);
+            }
         }
+
+        async function deleteUser(id) {
+            if (!confirm('确定要删除此员工吗？删除后无法恢复！')) return;
+
+            try {
+                const response = await api.delete(`/users/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadUsers();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除用户失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        // 表单提交
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const userData = {
+                username: document.getElementById('username').value.trim(),
+                fullName: document.getElementById('fullName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                role: document.getElementById('role').value,
+                isActive: document.getElementById('isActive').checked
+            };
+
+            // 如果是添加，需要密码；如果是编辑，密码可选
+            const password = document.getElementById('password').value.trim();
+            if (editingUserId === null) {
+                if (!password) {
+                    alert('请填写密码');
+                    return;
+                }
+                userData.password = password;
+            } else if (password) {
+                // 编辑时，如果填写了密码则更新
+                userData.password = password;
+            }
+
+            try {
+                let response;
+                if (editingUserId === null) {
+                    // 创建
+                    response = await users.create(userData);
+                } else {
+                    // 更新
+                    response = await users.update(editingUserId, userData);
+                }
+
+                if (response) {
+                    alert(editingUserId === null ? '添加成功' : '更新成功');
+                    closeUserModal();
+                    await loadUsers();
+                } else {
+                    alert(editingUserId === null ? '添加失败' : '更新失败');
+                }
+            } catch (error) {
+                console.error('保存用户失败:', error);
+                const errorMsg = error.message || (error.response?.data?.message) || '未知错误';
+                alert((editingUserId === null ? '添加失败' : '更新失败') + ': ' + errorMsg);
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('userModal').addEventListener('click', (e) => {
+            if (e.target.id === 'userModal') {
+                closeUserModal();
+            }
+        });
 
         loadUsers();
     </script>
