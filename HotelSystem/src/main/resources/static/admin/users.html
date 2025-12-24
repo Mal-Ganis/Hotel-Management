@@ -110,10 +110,10 @@
         <div class="sidebar">
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
-            <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
-            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
-            <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
-            <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
             <a href="http://localhost:8081/admin/users.html" class="active">员工管理</a>
         </div>
 
@@ -182,11 +182,26 @@
     </div>
 
     <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
     <script>
-        // 检查登录状态
+        // 检查登录状态和权限 - 只有管理员可以访问
         if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
             alert('请先登录');
             window.location.href = 'http://localhost:8081/admin/login.html';
+        } else if (auth.getUserRole() !== 'ADMIN') {
+            alert('权限不足：只有管理员可以访问员工管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+        }
+        
+        // 根据角色隐藏无权限的菜单项（虽然只有管理员能访问，但为了统一性也加上）
+        const userRole = auth.getUserRole();
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
         }
 
         async function loadUsers() {
@@ -326,7 +341,7 @@
                 username: document.getElementById('username').value.trim(),
                 fullName: document.getElementById('fullName').value.trim(),
                 email: document.getElementById('email').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
+                phone: document.getElementById('phone').value.trim() || null,
                 role: document.getElementById('role').value,
                 isActive: document.getElementById('isActive').checked
             };
@@ -334,14 +349,19 @@
             // 如果是添加，需要密码；如果是编辑，密码可选
             const password = document.getElementById('password').value.trim();
             if (editingUserId === null) {
+                // 添加时，密码必填
                 if (!password) {
                     alert('请填写密码');
                     return;
                 }
                 userData.password = password;
-            } else if (password) {
-                // 编辑时，如果填写了密码则更新
-                userData.password = password;
+            } else {
+                // 编辑时，只有填写了密码才发送password字段
+                // 如果不填写密码，不发送该字段，避免触发@NotBlank验证
+                if (password) {
+                    userData.password = password;
+                }
+                // 如果密码为空，不添加password字段到userData
             }
 
             try {
@@ -354,17 +374,17 @@
                     response = await users.update(editingUserId, userData);
                 }
 
-                if (response) {
+                // 如果成功，response 应该是 UserDto 对象（包含 id 和 username）
+                if (response && response.id) {
                     alert(editingUserId === null ? '添加成功' : '更新成功');
                     closeUserModal();
                     await loadUsers();
                 } else {
-                    alert(editingUserId === null ? '添加失败' : '更新失败');
+                    alert((editingUserId === null ? '添加失败' : '更新失败') + ': 响应格式错误');
                 }
             } catch (error) {
                 console.error('保存用户失败:', error);
-                const errorMsg = error.message || (error.response?.data?.message) || '未知错误';
-                alert((editingUserId === null ? '添加失败' : '更新失败') + ': ' + errorMsg);
+                alert((editingUserId === null ? '添加失败' : '更新失败') + ': ' + error.message);
             }
         });
 

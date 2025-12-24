@@ -26,7 +26,7 @@ public class ReservationController {
 
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST','MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<List<ReservationDto>>> getAllReservations() {
         List<ReservationDto> reservations = reservationService.getAllReservations();
         return ResponseEntity.ok(ApiResponse.success(reservations));

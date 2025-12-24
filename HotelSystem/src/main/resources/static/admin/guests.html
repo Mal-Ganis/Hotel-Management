@@ -71,11 +71,11 @@
         <div class="sidebar">
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
-            <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
-            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html" class="active">宾客管理</a>
-            <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
-            <a href="http://localhost:8081/admin/users.html">员工管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -91,28 +91,54 @@
     </div>
 
     <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
     <script>
         // 检查登录状态
         if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
             alert('请先登录');
             window.location.href = 'http://localhost:8081/admin/login.html';
         }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问宾客管理 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问宾客管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
 
         async function loadGuests() {
+            const container = document.getElementById('guestsContainer');
             try {
-                const response = await api.get('/guests');
-                if (response.success) {
-                    displayGuests(response.data || []);
-                }
+                const guestList = await guests.getAll();
+                displayGuests(guestList);
             } catch (error) {
-                document.getElementById('guestsContainer').innerHTML = 
-                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+                console.error('加载宾客失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
             }
         }
 
         function displayGuests(guestList) {
             const container = document.getElementById('guestsContainer');
-            if (guestList.length === 0) {
+            if (!guestList || guestList.length === 0) {
                 container.innerHTML = '<div class="alert">暂无宾客记录</div>';
                 return;
             }
@@ -141,6 +167,7 @@
                                 <td>${g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '-'}</td>
                                 <td>
                                     <button class="btn btn-primary" onclick="viewGuest(${g.id})">查看</button>
+                                    ${permissions.isManagerOrAdmin() ? `<button class="btn btn-danger" onclick="deleteGuest(${g.id})">删除</button>` : ''}
                                 </td>
                             </tr>
                         `).join('')}
@@ -163,6 +190,26 @@
 
         function viewGuest(id) {
             alert('查看宾客详情功能待实现');
+        }
+        
+        async function deleteGuest(id) {
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '删除宾客')) {
+                return;
+            }
+            if (!confirm('确定要删除此宾客吗？删除后无法恢复！')) return;
+            
+            try {
+                const response = await api.delete(`/guests/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadGuests();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除宾客失败:', error);
+                alert('删除失败: ' + error.message);
+            }
         }
 
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
