@@ -80,11 +80,11 @@
         <div class="sidebar">
             <h3>菜单</h3>
                 <a href="http://localhost:8081/admin/dashboard.html" class="active">仪表盘</a>
-                <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
-                <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
-                <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
-                <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
-                <a href="http://localhost:8081/admin/users.html">员工管理</a>
+                <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+                <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+                <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+                <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+                <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -100,21 +100,46 @@
     </div>
 
     <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
     <script>
         // 检查登录状态
         if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
             alert('请先登录');
             window.location.href = '/admin/login.html';
         }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 根据角色隐藏无权限的菜单项
+        if (userRole === 'HOUSEKEEPING') {
+            // 房务只能看仪表盘和房间管理
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
 
         async function loadStatistics() {
+            const container = document.getElementById('statsContainer');
             try {
                 const response = await api.get('/api/statistics/today');
-                if (response.success) {
+                if (response && response.success) {
                     displayStatistics(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载统计失败: ${response?.message || '未知错误'}</div>`;
                 }
             } catch (error) {
                 console.error('加载统计失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载统计失败: ${error.message || '网络错误'}</div>`;
             }
         }
 

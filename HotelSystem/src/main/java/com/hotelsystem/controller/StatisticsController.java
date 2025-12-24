@@ -25,7 +25,7 @@ public class StatisticsController {
      * 获取今日统计
      */
     @GetMapping("/today")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST','HOUSEKEEPING','MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTodayStatistics() {
         Map<String, Object> stats = statisticsService.getTodayStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));
@@ -35,7 +35,7 @@ public class StatisticsController {
      * 获取日期范围统计
      */
     @GetMapping("/date-range")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST','MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDateRangeStatistics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -47,7 +47,7 @@ public class StatisticsController {
      * 获取房型统计
      */
     @GetMapping("/room-types")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST','MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRoomTypeStatistics() {
         Map<String, Object> stats = statisticsService.getRoomTypeStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));

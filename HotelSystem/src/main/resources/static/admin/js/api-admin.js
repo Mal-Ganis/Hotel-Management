@@ -47,7 +47,21 @@ class ApiClient {
             }
             
             if (!response.ok) {
-                throw new Error(data.message || '请求失败');
+                // 处理权限错误
+                if (response.status === 401 || response.status === 403) {
+                    const errorMsg = data?.message || '权限不足或登录已过期';
+                    // 如果是权限问题，清除token并跳转登录
+                    if (response.status === 401) {
+                        this.setToken(null);
+                        localStorage.removeItem('adminRole');
+                        localStorage.removeItem('adminUsername');
+                        if (window.location.pathname !== '/admin/login.html') {
+                            window.location.href = '/admin/login.html';
+                        }
+                    }
+                    throw new Error(errorMsg);
+                }
+                throw new Error(data?.message || `请求失败 (${response.status})`);
             }
             
             return data;
@@ -85,7 +99,8 @@ const api = new ApiClient();
 // 认证相关
 const auth = {
     async login(username, password, role) {
-        const response = await api.post('/auth/login', { username, password });
+        // 传递角色信息到后端进行验证
+        const response = await api.post('/auth/login', { username, password, role: role });
         if (response.success && response.data && response.data.token) {
             api.setToken(response.data.token);
             localStorage.setItem('adminRole', role);
@@ -124,17 +139,26 @@ const rooms = {
 
     async create(roomData) {
         const response = await api.post('/rooms', roomData);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '创建房间失败');
     },
 
     async update(id, roomData) {
         const response = await api.put(`/rooms/${id}`, roomData);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '更新房间失败');
     },
 
     async delete(id) {
         const response = await api.delete(`/rooms/${id}`);
-        return response;
+        if (response && response.success) {
+            return response;
+        }
+        throw new Error(response?.message || '删除房间失败');
     }
 };
 
@@ -142,12 +166,18 @@ const rooms = {
 const reservations = {
     async getAll() {
         const response = await api.get('/reservations');
-        return response.data || [];
+        if (response && response.success) {
+            return response.data || [];
+        }
+        throw new Error(response?.message || '获取预订列表失败');
     },
 
     async getById(id) {
         const response = await api.get(`/reservations/${id}`);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '获取预订详情失败');
     },
 
     async checkIn(reservationId, data) {
@@ -178,12 +208,18 @@ const statistics = {
 const guests = {
     async getAll() {
         const response = await api.get('/guests');
-        return response.data || [];
+        if (response && response.success) {
+            return response.data || [];
+        }
+        throw new Error(response?.message || '获取宾客列表失败');
     },
 
     async getById(id) {
         const response = await api.get(`/guests/${id}`);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '获取宾客详情失败');
     }
 };
 
@@ -204,12 +240,18 @@ const users = {
 
     async create(userData) {
         const response = await api.post('/users', userData);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '创建用户失败');
     },
 
     async update(id, userData) {
         const response = await api.put(`/users/${id}`, userData);
-        return response.data;
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '更新用户失败');
     },
 
     async delete(id) {
