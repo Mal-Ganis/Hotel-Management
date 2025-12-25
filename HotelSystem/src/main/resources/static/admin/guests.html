@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宾客管理 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .search-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8081/admin/dashboard.html">返回首页</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" class="active">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <h2>宾客管理</h2>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="搜索宾客姓名、身份证号或手机号">
+                <button class="btn btn-primary" onclick="searchGuests()">搜索</button>
+            </div>
+            <div id="guestsContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问宾客管理 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问宾客管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+
+        async function loadGuests() {
+            const container = document.getElementById('guestsContainer');
+            try {
+                const guestList = await guests.getAll();
+                displayGuests(guestList);
+            } catch (error) {
+                console.error('加载宾客失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        function displayGuests(guestList) {
+            const container = document.getElementById('guestsContainer');
+            if (!guestList || guestList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无宾客记录</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>身份证号</th>
+                            <th>手机号</th>
+                            <th>邮箱</th>
+                            <th>性别</th>
+                            <th>注册时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${guestList.map(g => `
+                            <tr>
+                                <td>${g.fullName}</td>
+                                <td>${g.idCardNumber}</td>
+                                <td>${g.phone || '-'}</td>
+                                <td>${g.email || '-'}</td>
+                                <td>${g.gender === 'MALE' ? '男' : g.gender === 'FEMALE' ? '女' : '-'}</td>
+                                <td>${g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '-'}</td>
+                                <td>
+                                    <button class="btn btn-primary" onclick="viewGuest(${g.id})">查看</button>
+                                    ${permissions.isManagerOrAdmin() ? `<button class="btn btn-danger" onclick="deleteGuest(${g.id})">删除</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function searchGuests() {
+            const keyword = document.getElementById('searchInput').value;
+            if (!keyword) {
+                loadGuests();
+                return;
+            }
+            // 简化处理：前端过滤
+            loadGuests().then(() => {
+                // 实际应该调用后端搜索API
+            });
+        }
+
+        function viewGuest(id) {
+            alert('查看宾客详情功能待实现');
+        }
+        
+        async function deleteGuest(id) {
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '删除宾客')) {
+                return;
+            }
+            if (!confirm('确定要删除此宾客吗？删除后无法恢复！')) return;
+            
+            try {
+                const response = await api.delete(`/guests/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadGuests();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除宾客失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchGuests();
+            }
+        });
+
+        loadGuests();
+    </script>
+</body>
+</html>
+

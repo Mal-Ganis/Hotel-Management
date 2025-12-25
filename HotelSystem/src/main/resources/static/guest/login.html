@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宾客登录 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .btn-block {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .register-link a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统</h1>
+            <div class="nav-links">
+                <a href="/index.html">首页</a>
+                <a href="/guest/rooms.html">房间浏览</a>
+                <a href="/guest/login.html">宾客登录</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="login-container">
+        <h2>宾客登录</h2>
+        <div id="alertContainer"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">登录</button>
+        </form>
+        <div class="register-link">
+            <p>还没有账号？ <a href="/guest/register.html">立即注册</a></p>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const alertContainer = document.getElementById('alertContainer');
+
+            try {
+                const response = await auth.login(email, password, 'GUEST');
+                if (response.success) {
+                    alertContainer.innerHTML = '<div class="alert alert-success">登录成功！</div>';
+                    setTimeout(() => {
+                        window.location.href = '/guest/rooms.html';
+                    }, 1000);
+                } else {
+                    alertContainer.innerHTML = `<div class="alert alert-error">${response.message || '登录失败'}</div>`;
+                }
+            } catch (error) {
+                alertContainer.innerHTML = `<div class="alert alert-error">登录失败: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>
+

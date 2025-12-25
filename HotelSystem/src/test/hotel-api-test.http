@@ -1,0 +1,484 @@
+### 酒店系统端到端 API 测试流程（带自动 token 同步）
+
+### 说明：
+### - 默认应用在首次启动时会自动创建初始管理员，用户名/密码 默认为 `admin` / `admin123`。
+### - 大多数管理接口需要在请求头中带 `Authorization: Bearer <JWT>`。
+### - 本文件使用 REST Client 脚本变量实现动态 token 同步：
+###   1. 执行下面的登录请求后，token 自动保存到 @adminToken / @guestToken 变量。
+###   2. 后续请求的 Authorization 头使用 {{@adminToken}} 等变量引用。
+###   3. 避免手动复制粘贴 token 的繁琐过程。
+### - 测试顺序：认证 -> 用户（管理员）-> 客房 -> 宾客 -> 预订 -> 支付回调
+
+### ============================================
+### 0. 认证与 Token 管理
+### ============================================
+
+### 获取管理员 JWT（必须先执行此块，token 将自动保存到 @adminToken）
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+> {%
+  client.global.set("adminToken", response.body.token);
+%}
+
+### 1. 用户管理测试
+
+### 获取所有用户（需要管理员/经理权限）
+GET http://localhost:8080/users
+Authorization: Bearer {{adminToken}}
+
+### 创建管理员用户（需要管理员权限）
+POST http://localhost:8080/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "username": "admin2",
+  "password": "admin123",
+  "fullName": "系统管理员2",
+  "email": "admin2@hotel.com",
+  "phone": "13800138001",
+  "role": "ADMIN"
+}
+
+### 创建前台用户（需要管理员权限）
+POST http://localhost:8080/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "username": "reception",
+  "password": "reception123",
+  "fullName": "前台小李",
+  "email": "reception@hotel.com",
+  "phone": "13900139000",
+  "role": "RECEPTIONIST"
+}
+
+### 获取所有用户（现在应该有管理员/前台等）
+GET http://localhost:8080/users
+Authorization: Bearer {{adminToken}}
+
+### 2. 客房管理测试
+
+### 获取所有客房（初始应为空或由种子数据决定）
+GET http://localhost:8080/rooms
+Authorization: Bearer {{adminToken}}
+
+### 创建标准大床房（需要管理员/经理权限）
+POST http://localhost:8080/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomNumber": "101",
+  "roomType": "标准大床房",
+  "description": "舒适的标准大床房，配备独立卫浴",
+  "price": 299.00,
+  "capacity": 2,
+  "amenities": "WiFi,空调,电视,独立卫浴",
+  "status": "AVAILABLE"
+}
+
+### 创建豪华双床房
+POST http://localhost:8080/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomNumber": "201",
+  "roomType": "豪华双床房",
+  "description": "宽敞的豪华双床房，配备按摩浴缸",
+  "price": 499.00,
+  "capacity": 2,
+  "amenities": "WiFi,空调,电视,按摩浴缸,迷你吧",
+  "status": "AVAILABLE"
+}
+
+### 创建套房
+POST http://localhost:8080/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomNumber": "301",
+  "roomType": "豪华套房",
+  "description": "奢华的豪华套房，配备客厅和卧室",
+  "price": 899.00,
+  "capacity": 4,
+  "amenities": "WiFi,空调,电视,按摩浴缸,迷你吧,客厅,阳台",
+  "status": "AVAILABLE"
+}
+
+### 获取所有客房（现在应该有3个房间）
+GET http://localhost:8080/rooms
+Authorization: Bearer {{adminToken}}
+
+### 获取可用客房
+GET http://localhost:8080/rooms/available
+Authorization: Bearer {{adminToken}}
+
+### 根据房型查询
+GET http://localhost:8080/rooms/by-type?roomType=升级大床房
+Authorization: Bearer {{adminToken}}
+
+### 根据ID获取客房
+GET http://localhost:8080/rooms/1
+Authorization: Bearer {{adminToken}}
+
+### 更新客房信息（需要管理员权限）
+PUT http://localhost:8080/rooms/1
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomNumber": "101",
+  "roomType": "升级大床房",
+  "description": "升级版舒适大床房，配备独立卫浴和办公区",
+  "price": 349.00,
+  "capacity": 2,
+  "amenities": "WiFi,空调,电视,独立卫浴,办公桌",
+  "status": "AVAILABLE",
+  "isActive": true
+}
+
+### 3. 宾客管理测试
+
+### 获取所有宾客（初始应为空）
+GET http://localhost:8080/guests
+Authorization: Bearer {{adminToken}}
+
+### 创建宾客1（对外开放，可直接注册）
+POST http://localhost:8080/guests
+Content-Type: application/json
+
+{
+  "fullName": "张三",
+  "idCardNumber": "110101199001011234",
+  "phone": "13800138000",
+  "email": "zhangsan@example.com",
+  "password": "guestpass1",
+  "gender": "MALE",
+  "dateOfBirth": "1990-01-01",
+  "address": "北京市朝阳区",
+  "preferences": "无烟,高楼层",
+  "specialRequests": "需要接机服务"
+}
+
+### 创建宾客2
+POST http://localhost:8080/guests
+Content-Type: application/json
+
+{
+  "fullName": "李四",
+  "idCardNumber": "110101199002021235",
+  "phone": "13900139000",
+  "email": "lisi@example.com",
+  "password": "guestpass2",
+  "gender": "FEMALE",
+  "dateOfBirth": "1990-02-02",
+  "address": "上海市浦东新区",
+  "preferences": "安静,有窗",
+  "specialRequests": "需要婴儿床"
+}
+
+### 获取所有宾客（现在应该有2个宾客）
+GET http://localhost:8080/guests
+Authorization: Bearer {{adminToken}}
+
+### 宾客1登录（获取 guest token，保存到 @guestToken）
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "username": "zhangsan@example.com",
+  "password": "guestpass1"
+}
+
+> {%
+  client.global.set("guestToken", response.body.token);
+%}
+
+### 4. 预订管理测试
+
+### 获取所有预订（初始应为空）
+GET http://localhost:8080/reservations
+Authorization: Bearer {{adminToken}}
+
+### 创建预订1（张三预订101房间，此时预订状态为 PENDING，房间不被锁定）
+POST http://localhost:8080/reservations
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "guestId": 1,
+  "roomId": 1,
+  "checkInDate": "2025-12-20",
+  "checkOutDate": "2025-12-22",
+  "numberOfGuests": 2,
+  "specialRequests": "需要鲜花布置",
+  "createdBy": "admin"
+}
+
+> {%
+  if (response.status === 200 && response.body.data && response.body.data.id) {
+    client.global.set("reservationId1", response.body.data.id);
+  }
+%}
+
+### 创建预订2（李四预订201房间，此时预订状态为 PENDING）
+POST http://localhost:8080/reservations
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "guestId": 2,
+  "roomId": 2,
+  "checkInDate": "2025-12-25",
+  "checkOutDate": "2025-12-27",
+  "numberOfGuests": 2,
+  "specialRequests": "需要婴儿床",
+  "createdBy": "reception"
+}
+
+> {%
+  if (response.status === 200 && response.body.data && response.body.data.id) {
+    client.global.set("reservationId2", response.body.data.id);
+  }
+%}
+
+### 获取所有预订（都应该是 PENDING 状态）
+GET http://localhost:8080/reservations
+Authorization: Bearer {{adminToken}}
+
+### 根据宾客ID获取预订
+GET http://localhost:8080/reservations/guest/2
+Authorization: Bearer {{adminToken}}
+
+### 根据房间ID获取预订
+GET http://localhost:8080/reservations/room/1
+Authorization: Bearer {{adminToken}}
+
+### 根据状态获取预订
+GET http://localhost:8080/reservations/status/PENDING
+Authorization: Bearer {{adminToken}}
+
+### 根据入住日期范围查询
+GET http://localhost:8080/reservations/checkin-range?start=2025-12-19&end=2025-12-26
+Authorization: Bearer {{adminToken}}
+
+### 根据ID获取预订
+GET http://localhost:8080/reservations/1
+Authorization: Bearer {{adminToken}}
+
+### 5. 业务逻辑验证测试
+
+### 测试房间可用性（当预订1和2都未支付时，房间仍应可用）
+POST http://localhost:8080/reservations
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "guestId": 2,
+  "roomId": 1,
+  "checkInDate": "2025-11-21",
+  "checkOutDate": "2025-11-23",
+  "numberOfGuests": 2,
+  "specialRequests": "测试房间冲突",
+  "createdBy": "admin"
+}
+
+### 测试可用客房
+GET http://localhost:8080/rooms/available
+Authorization: Bearer {{adminToken}}
+
+### 按日期检查：在未完成支付前，101（12月20-22 的预订）在 2025-11-23 应该可用
+GET http://localhost:8080/rooms/available?checkIn=2025-11-23&checkOut=2025-11-24
+Authorization: Bearer {{adminToken}}
+
+### 按日期检查：在未完成支付前，查询 2025-12-20~2025-12-22（包含预订1）时仍应显示可用（预订为 PENDING）
+GET http://localhost:8080/rooms/available?checkIn=2025-12-20&checkOut=2025-12-22
+Authorization: Bearer {{adminToken}}
+
+### 6. 数据验证测试
+
+### 测试重复用户名（应该返回错误）
+POST http://localhost:8080/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "username": "admin",
+  "password": "password123",
+  "fullName": "测试用户",
+  "email": "test@hotel.com",
+  "phone": "13600136000",
+  "role": "RECEPTIONIST"
+}
+
+### 测试重复房间号（应该返回错误）
+POST http://localhost:8080/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomNumber": "101",
+  "roomType": "测试房间",
+  "description": "测试重复房间号",
+  "price": 100.00,
+  "capacity": 1,
+  "amenities": "WiFi",
+  "status": "AVAILABLE"
+}
+
+### 测试重复身份证号（应该返回错误）
+POST http://localhost:8080/guests
+Content-Type: application/json
+
+{
+  "fullName": "测试宾客",
+  "idCardNumber": "110101199001011234",
+  "phone": "13700137000",
+  "email": "test@example.com",
+  "gender": "MALE",
+  "dateOfBirth": "1995-01-01",
+  "address": "测试地址"
+}
+
+### 7. 清理测试数据（可选）
+
+### 删除预订
+DELETE http://localhost:8080/reservations/1
+Authorization: Bearer {{adminToken}}
+
+### 删除宾客
+DELETE http://localhost:8080/guests/1
+Authorization: Bearer {{adminToken}}
+
+### 删除客房
+DELETE http://localhost:8080/rooms/3
+Authorization: Bearer {{adminToken}}
+
+### 删除用户
+DELETE http://localhost:8080/users/4
+Authorization: Bearer {{adminToken}}
+
+### 8. 支付流程（新工作流：支付成功后预订才变为 CONFIRMED）
+
+### ① 为预订1创建支付交易（PENDING 状态）
+POST http://localhost:8080/payments/create
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "reservationId": {{reservationId1}},
+  "amount": 598.00,
+  "note": "预订1支付"
+}
+
+> {%
+  if (response.status === 200 && response.body.data) {
+    client.global.set("transactionId1", response.body.data.transactionId);
+  }
+%}
+
+### ② 支付回调成功（预订1 的状态变为 CONFIRMED，房间标记为 RESERVED）
+POST http://localhost:8080/payments/callback
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "transactionId": {{transactionId1}},
+  "status": "SUCCESS",
+  "providerTransactionId": "pay-reservation1-001"
+}
+
+### ③ 验证预订1已变为 CONFIRMED，房间已被锁定
+GET http://localhost:8080/reservations/{{reservationId1}}
+Authorization: Bearer {{adminToken}}
+
+### ④ 为预订2创建支付交易
+POST http://localhost:8080/payments/create
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "reservationId": {{reservationId2}},
+  "amount": 998.00,
+  "note": "预订2支付"
+}
+
+> {%
+  if (response.status === 200 && response.body.data) {
+    client.global.set("transactionId2", response.body.data.transactionId);
+  }
+%}
+
+### ⑤ 支付回调成功（预订2 的状态变为 CONFIRMED，房间标记为 RESERVED）
+POST http://localhost:8080/payments/callback
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "transactionId": {{transactionId2}},
+  "status": "SUCCESS",
+  "providerTransactionId": "pay-reservation2-001"
+}
+
+### ⑥ 验证预订2已变为 CONFIRMED
+GET http://localhost:8080/reservations/{{reservationId2}}
+Authorization: Bearer {{adminToken}}
+
+### ⑦ 支付后按日期检查房间可用性
+###  - 2025-11-23：与预订日期不重叠，应仍然可用
+GET http://localhost:8080/rooms/available?checkIn=2025-11-23&checkOut=2025-11-24
+Authorization: Bearer {{adminToken}}
+
+###  - 2025-12-20~2025-12-22：与预订1重叠，支付成功后应不可用（或不出现在 AVAILABLE 列表）
+GET http://localhost:8080/rooms/available?checkIn=2025-12-20&checkOut=2025-12-22
+Authorization: Bearer {{adminToken}}
+
+###  - 不带日期参数的默认可用房间（保留原有检查）
+GET http://localhost:8080/rooms/available
+Authorization: Bearer {{adminToken}}
+
+### 9. 取消预订工作流（取消时需要先创建退款交易，再通过回调完成）
+
+### ① 触发取消预订1，系统创建 REFUND 交易（PENDING 状态）
+POST http://localhost:8080/reservations/{{reservationId1}}/cancel
+Authorization: Bearer {{guestToken}}
+
+> {%
+  if (response.status === 200 && response.body.data) {
+    client.global.set("refundTransactionId1", response.body.data.transactionId);
+  }
+%}
+
+### ② 验证预订1仍为 CONFIRMED（退款未完成）
+GET http://localhost:8080/reservations/{{reservationId1}}
+Authorization: Bearer {{adminToken}}
+
+### ③ 退款回调成功（预订1 的状态变为 CANCELLED，房间恢复为 AVAILABLE）
+POST http://localhost:8080/payments/callback
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "transactionId": {{refundTransactionId1}},
+  "status": "SUCCESS",
+  "providerTransactionId": "refund-reservation1-001"
+}
+
+### ④ 验证预订1已变为 CANCELLED
+GET http://localhost:8080/reservations/{{reservationId1}}
+Authorization: Bearer {{adminToken}}
+
+### ⑤ 验证房间101已恢复为 AVAILABLE
+GET http://localhost:8080/rooms/available
+Authorization: Bearer {{adminToken}}
+

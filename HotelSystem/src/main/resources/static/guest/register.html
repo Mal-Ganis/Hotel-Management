@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宾客注册 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .register-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        .register-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+        .btn-block {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统</h1>
+            <div class="nav-links">
+                <a href="/index.html">首页</a>
+                <a href="/guest/rooms.html">房间浏览</a>
+                <a href="/guest/login.html">宾客登录</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="register-container">
+        <h2>宾客注册</h2>
+        <div id="alertContainer"></div>
+        <form id="registerForm">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="fullName" required>
+            </div>
+            <div class="form-group">
+                <label>身份证号</label>
+                <input type="text" id="idCardNumber" required>
+            </div>
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" id="phone">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" required>
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" id="confirmPassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">注册</button>
+        </form>
+        <div class="login-link">
+            <p>已有账号？ <a href="/guest/login.html">立即登录</a></p>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const alertContainer = document.getElementById('alertContainer');
+
+            if (password !== confirmPassword) {
+                alertContainer.innerHTML = '<div class="alert alert-error">两次输入的密码不一致</div>';
+                return;
+            }
+
+            const guestData = {
+                fullName: document.getElementById('fullName').value,
+                idCardNumber: document.getElementById('idCardNumber').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                password: password
+            };
+
+            try {
+                const response = await auth.register(guestData);
+                if (response.success) {
+                    alertContainer.innerHTML = '<div class="alert alert-success">注册成功！请登录</div>';
+                    setTimeout(() => {
+                        window.location.href = '/guest/login.html';
+                    }, 2000);
+                } else {
+                    alertContainer.innerHTML = `<div class="alert alert-error">${response.message || '注册失败'}</div>`;
+                }
+            } catch (error) {
+                alertContainer.innerHTML = `<div class="alert alert-error">注册失败: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>员工管理 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .action-bar {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: #667eea;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8081/admin/dashboard.html">返回首页</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" class="active">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <div class="action-bar">
+                <h2>员工管理</h2>
+                <button class="btn btn-primary" onclick="openAddUserModal()">添加员工</button>
+            </div>
+            <div id="usersContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑员工模态框 -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加员工</h3>
+                <button class="close-btn" onclick="closeUserModal()">&times;</button>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label>用户名 <span style="color:red;">*</span></label>
+                    <input type="text" id="username" required maxlength="50">
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label>密码 <span style="color:red;">*</span></label>
+                    <input type="password" id="password" required minlength="6">
+                    <small style="color:#666;">至少6个字符</small>
+                </div>
+                <div class="form-group">
+                    <label>姓名 <span style="color:red;">*</span></label>
+                    <input type="text" id="fullName" required maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>邮箱 <span style="color:red;">*</span></label>
+                    <input type="email" id="email" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="text" id="phone" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>角色 <span style="color:red;">*</span></label>
+                    <select id="role" required>
+                        <option value="RECEPTIONIST">前台</option>
+                        <option value="HOUSEKEEPING">房务</option>
+                        <option value="MANAGER">经理</option>
+                        <option value="ADMIN">管理员</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isActive" checked>
+                        启用
+                    </label>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeUserModal()" style="flex:1;">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态和权限 - 只有管理员可以访问
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        } else if (auth.getUserRole() !== 'ADMIN') {
+            alert('权限不足：只有管理员可以访问员工管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+        }
+        
+        // 根据角色隐藏无权限的菜单项（虽然只有管理员能访问，但为了统一性也加上）
+        const userRole = auth.getUserRole();
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await api.get('/users');
+                if (response.success) {
+                    displayUsers(response.data || []);
+                }
+            } catch (error) {
+                document.getElementById('usersContainer').innerHTML = 
+                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        function displayUsers(userList) {
+            const container = document.getElementById('usersContainer');
+            if (userList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无员工记录</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>用户名</th>
+                            <th>姓名</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${userList.map(u => `
+                            <tr>
+                                <td>${u.username}</td>
+                                <td>${u.fullName}</td>
+                                <td>${u.email}</td>
+                                <td><span class="badge badge-info">${getRoleText(u.role)}</span></td>
+                                <td><span class="badge badge-${u.isActive ? 'success' : 'danger'}">${u.isActive ? '启用' : '禁用'}</span></td>
+                                <td>
+                                    <button class="btn btn-primary" onclick="editUser(${u.id})">编辑</button>
+                                    <button class="btn btn-danger" onclick="deleteUser(${u.id})">删除</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getRoleText(role) {
+            const roleMap = {
+                'ADMIN': '管理员',
+                'MANAGER': '经理',
+                'RECEPTIONIST': '前台',
+                'HOUSEKEEPING': '房务'
+            };
+            return roleMap[role] || role;
+        }
+
+        let editingUserId = null;
+
+        function openAddUserModal() {
+            editingUserId = null;
+            document.getElementById('modalTitle').textContent = '添加员工';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('username').readOnly = false;
+            document.getElementById('username').required = true;
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password').required = true;
+            document.getElementById('password').value = '';
+            document.getElementById('password').placeholder = '';
+            document.getElementById('isActive').checked = true;
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+            editingUserId = null;
+            document.getElementById('userForm').reset();
+        }
+
+        async function editUser(id) {
+            try {
+                const response = await api.get(`/users/${id}`);
+                if (response && response.success && response.data) {
+                    const user = response.data;
+                    editingUserId = id;
+                    document.getElementById('modalTitle').textContent = '编辑员工';
+                    document.getElementById('userId').value = user.id;
+                    document.getElementById('username').value = user.username || '';
+                    document.getElementById('username').readOnly = true;
+                    document.getElementById('passwordGroup').style.display = 'block';
+                    document.getElementById('password').required = false;
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').placeholder = '留空则不修改密码';
+                    document.getElementById('fullName').value = user.fullName || '';
+                    document.getElementById('email').value = user.email || '';
+                    document.getElementById('phone').value = user.phone || '';
+                    document.getElementById('role').value = user.role || 'RECEPTIONIST';
+                    document.getElementById('isActive').checked = user.isActive !== false;
+                    document.getElementById('userModal').classList.add('active');
+                } else {
+                    alert('加载员工信息失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('加载用户失败:', error);
+                alert('加载失败: ' + error.message);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('确定要删除此员工吗？删除后无法恢复！')) return;
+
+            try {
+                const response = await api.delete(`/users/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadUsers();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除用户失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        // 表单提交
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const userData = {
+                username: document.getElementById('username').value.trim(),
+                fullName: document.getElementById('fullName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim() || null,
+                role: document.getElementById('role').value,
+                isActive: document.getElementById('isActive').checked
+            };
+
+            // 如果是添加，需要密码；如果是编辑，密码可选
+            const password = document.getElementById('password').value.trim();
+            if (editingUserId === null) {
+                // 添加时，密码必填
+                if (!password) {
+                    alert('请填写密码');
+                    return;
+                }
+                userData.password = password;
+            } else {
+                // 编辑时，只有填写了密码才发送password字段
+                // 如果不填写密码，不发送该字段，避免触发@NotBlank验证
+                if (password) {
+                    userData.password = password;
+                }
+                // 如果密码为空，不添加password字段到userData
+            }
+
+            try {
+                let response;
+                if (editingUserId === null) {
+                    // 创建
+                    response = await users.create(userData);
+                } else {
+                    // 更新
+                    response = await users.update(editingUserId, userData);
+                }
+
+                // 如果成功，response 应该是 UserDto 对象（包含 id 和 username）
+                if (response && response.id) {
+                    alert(editingUserId === null ? '添加成功' : '更新成功');
+                    closeUserModal();
+                    await loadUsers();
+                } else {
+                    alert((editingUserId === null ? '添加失败' : '更新失败') + ': 响应格式错误');
+                }
+            } catch (error) {
+                console.error('保存用户失败:', error);
+                alert((editingUserId === null ? '添加失败' : '更新失败') + ': ' + error.message);
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('userModal').addEventListener('click', (e) => {
+            if (e.target.id === 'userModal') {
+                closeUserModal();
+            }
+        });
+
+        loadUsers();
+    </script>
+</body>
+</html>
+

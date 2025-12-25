@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房间管理 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .action-bar {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8080/">返回宾客端</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" class="active">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <div class="action-bar">
+                <h2>房间管理</h2>
+                <button class="btn btn-primary" onclick="openAddRoomModal()">添加房间</button>
+            </div>
+            <div id="roomsContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑房间模态框 -->
+    <div id="roomModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:600px; width:90%; max-height:90vh; overflow-y:auto;">
+            <h2 id="modalTitle">添加房间</h2>
+            <form id="roomForm">
+                <input type="hidden" id="roomId">
+                <div class="form-group">
+                    <label>房间号</label>
+                    <input type="text" id="roomNumber" required>
+                </div>
+                <div class="form-group">
+                    <label>房型</label>
+                    <input type="text" id="roomType" required>
+                </div>
+                <div class="form-group">
+                    <label>价格/晚</label>
+                    <input type="number" id="price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>可住人数</label>
+                    <input type="number" id="capacity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>设施</label>
+                    <input type="text" id="amenities" placeholder="WiFi,空调,电视">
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select id="status">
+                        <option value="AVAILABLE">可预订</option>
+                        <option value="RESERVED">已预订</option>
+                        <option value="OCCUPIED">已入住</option>
+                        <option value="CLEANING">清洁中</option>
+                        <option value="MAINTENANCE">维修中</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeRoomModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单和按钮
+        const userRole = auth.getUserRole();
+        
+        // 员工管理菜单 - 仅管理员可见
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房间管理 - 添加按钮仅经理和管理员可见
+        if (!permissions.isManagerOrAdmin()) {
+            const addRoomBtn = document.querySelector('.action-bar button');
+            if (addRoomBtn) {
+                addRoomBtn.style.display = 'none';
+            }
+        }
+        
+        // 根据角色隐藏无权限的菜单项
+        if (userRole === 'HOUSEKEEPING') {
+            // 房务只能看仪表盘和房间管理
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+
+        async function loadRooms() {
+            const container = document.getElementById('roomsContainer');
+            try {
+                const response = await api.get('/rooms');
+                if (response && response.success) {
+                    displayRooms(response.data || []);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载失败: ${response?.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                console.error('加载房间失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        function displayRooms(roomList) {
+            const container = document.getElementById('roomsContainer');
+            if (roomList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无房间</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>房间号</th>
+                            <th>房型</th>
+                            <th>价格</th>
+                            <th>可住人数</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${roomList.map(r => `
+                            <tr>
+                                <td>${r.roomNumber}</td>
+                                <td>${r.roomType}</td>
+                                <td>¥${r.price}</td>
+                                <td>${r.capacity}</td>
+                                <td><span class="badge badge-${getStatusClass(r.status)}">${getStatusText(r.status)}</span></td>
+                                <td>
+                                    ${permissions.isManagerOrAdmin() ? `<button class="btn btn-primary" onclick="editRoom(${r.id})">编辑</button>` : ''}
+                                    ${permissions.isManagerOrAdmin() ? `<button class="btn btn-danger" onclick="deleteRoom(${r.id})">删除</button>` : ''}
+                                    ${!permissions.isManagerOrAdmin() ? '<span style="color:#999;">仅查看</span>' : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'AVAILABLE': '可预订',
+                'RESERVED': '已预订',
+                'OCCUPIED': '已入住',
+                'CLEANING': '清洁中',
+                'MAINTENANCE': '维修中'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'AVAILABLE': 'success',
+                'RESERVED': 'warning',
+                'OCCUPIED': 'info',
+                'CLEANING': 'warning',
+                'MAINTENANCE': 'danger'
+            };
+            return classMap[status] || 'info';
+        }
+
+        function openAddRoomModal() {
+            // 检查权限
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '添加房间')) {
+                return;
+            }
+            document.getElementById('modalTitle').textContent = '添加房间';
+            document.getElementById('roomForm').reset();
+            document.getElementById('roomId').value = '';
+            document.getElementById('status').value = 'AVAILABLE'; // 设置默认状态
+            document.getElementById('roomModal').style.display = 'flex';
+        }
+
+        function editRoom(id) {
+            // 检查权限
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '编辑房间')) {
+                return;
+            }
+            // 简化处理：从列表获取房间信息
+            loadRooms().then(() => {
+                // 实际应该调用API获取房间详情
+                document.getElementById('modalTitle').textContent = '编辑房间';
+                document.getElementById('roomModal').style.display = 'flex';
+            });
+        }
+
+        function closeRoomModal() {
+            document.getElementById('roomModal').style.display = 'none';
+        }
+
+        async function deleteRoom(id) {
+            // 检查权限
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '删除房间')) {
+                return;
+            }
+            if (!confirm('确定要删除此房间吗？删除后无法恢复！')) return;
+            
+            try {
+                const response = await rooms.delete(id);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadRooms();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除房间失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        document.getElementById('roomForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const roomData = {
+                roomNumber: document.getElementById('roomNumber').value.trim(),
+                roomType: document.getElementById('roomType').value.trim(),
+                price: parseFloat(document.getElementById('price').value),
+                capacity: parseInt(document.getElementById('capacity').value),
+                amenities: document.getElementById('amenities').value.trim(),
+                description: document.getElementById('description').value.trim(),
+                status: document.getElementById('status').value
+            };
+
+            try {
+                const roomId = document.getElementById('roomId').value;
+                let response;
+                if (roomId) {
+                    // 更新
+                    response = await rooms.update(roomId, roomData);
+                } else {
+                    // 创建
+                    response = await rooms.create(roomData);
+                }
+                
+                // 检查响应是否成功
+                if (response && (response.id || response.roomNumber)) {
+                    alert(roomId ? '更新成功' : '添加成功');
+                    closeRoomModal();
+                    document.getElementById('roomForm').reset();
+                    document.getElementById('roomId').value = '';
+                    await loadRooms();
+                } else {
+                    alert((roomId ? '更新失败' : '添加失败') + ': 响应格式错误');
+                }
+            } catch (error) {
+                console.error('保存房间失败:', error);
+                alert((document.getElementById('roomId').value ? '更新失败' : '添加失败') + ': ' + error.message);
+            }
+        });
+
+        loadRooms();
+    </script>
+</body>
+</html>
+

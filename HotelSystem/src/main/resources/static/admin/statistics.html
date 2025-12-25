@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计报表 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .stat-card h4 {
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .date-range-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8080/">返回宾客端</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" class="active">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <h2>统计报表</h2>
+            
+            <div class="date-range-form">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>开始日期</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>结束日期</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button class="btn btn-primary" onclick="loadDateRangeStats()">查询</button>
+            </div>
+
+            <h3>今日统计</h3>
+            <div id="todayStats" class="stats-grid">
+                <div class="loading">加载中...</div>
+            </div>
+
+            <h3>日期范围统计</h3>
+            <div id="rangeStats" class="stats-grid">
+                <div class="alert">请选择日期范围查询</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单和功能
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问统计报表 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问统计报表');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+        
+        // 房务不能查看日期范围统计
+        async function loadDateRangeStats() {
+            if (auth.getUserRole() === 'HOUSEKEEPING') {
+                alert('权限不足：房务无法查看日期范围统计');
+                return;
+            }
+            
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('请选择日期范围');
+                return;
+            }
+
+            const container = document.getElementById('rangeStats');
+            try {
+                const response = await api.get(`/api/statistics/date-range?startDate=${startDate}&endDate=${endDate}`);
+                if (response && response.success) {
+                    displayRangeStats(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载失败: ${response?.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                console.error('加载日期范围统计失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        // 设置默认日期
+        const today = new Date().toISOString().split('T')[0];
+        const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('startDate').value = firstDayOfMonth;
+        document.getElementById('endDate').value = today;
+
+        async function loadTodayStats() {
+            const container = document.getElementById('todayStats');
+            try {
+                const response = await api.get('/api/statistics/today');
+                if (response && response.success) {
+                    displayTodayStats(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载失败: ${response?.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                console.error('加载今日统计失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        function displayTodayStats(stats) {
+            const container = document.getElementById('todayStats');
+            container.innerHTML = `
+                <div class="stat-card">
+                    <h4>今日入住</h4>
+                    <div class="value">${stats.todayCheckIns || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>今日退房</h4>
+                    <div class="value">${stats.todayCheckOuts || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>今日新增预订</h4>
+                    <div class="value">${stats.todayNewReservations || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>今日收入</h4>
+                    <div class="value">¥${stats.todayRevenue || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>可用房间</h4>
+                    <div class="value">${stats.availableRooms || 0}/${stats.totalRooms || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>入住率</h4>
+                    <div class="value">${(stats.occupancyRate || 0).toFixed(1)}%</div>
+                </div>
+            `;
+        }
+
+        function displayRangeStats(stats) {
+            const container = document.getElementById('rangeStats');
+            container.innerHTML = `
+                <div class="stat-card">
+                    <h4>总预订数</h4>
+                    <div class="value">${stats.totalReservations || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>总收入</h4>
+                    <div class="value">¥${stats.totalRevenue || 0}</div>
+                </div>
+            `;
+        }
+
+        loadTodayStats();
+    </script>
+</body>
+</html>
+

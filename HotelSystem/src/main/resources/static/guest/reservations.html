@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的预订 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统</h1>
+            <div class="nav-links">
+                <a href="/index.html">首页</a>
+                <a href="/guest/rooms.html">房间浏览</a>
+                <a href="/guest/reservations.html">我的预订</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 style="margin:30px 0;">我的预订</h2>
+        <div id="reservationsContainer">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() !== 'GUEST') {
+            alert('请先登录');
+            window.location.href = '/guest/login.html';
+        }
+
+        async function loadReservations() {
+            try {
+                const reservationList = await reservations.getMyReservations();
+                displayReservations(reservationList);
+            } catch (error) {
+                document.getElementById('reservationsContainer').innerHTML = 
+                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        function displayReservations(reservationList) {
+            const container = document.getElementById('reservationsContainer');
+            if (reservationList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无预订记录</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>预订号</th>
+                            <th>房间号</th>
+                            <th>入住日期</th>
+                            <th>离店日期</th>
+                            <th>总金额</th>
+                            <th>已付金额</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reservationList.map(r => `
+                            <tr>
+                                <td>${r.reservationNumber}</td>
+                                <td>${r.roomNumber || '未分配'}</td>
+                                <td>${r.checkInDate}</td>
+                                <td>${r.checkOutDate}</td>
+                                <td>¥${r.totalAmount || 0}</td>
+                                <td>¥${r.paidAmount || 0}</td>
+                                <td><span class="badge badge-${getStatusClass(r.status)}">${getStatusText(r.status)}</span></td>
+                                <td>
+                                    ${r.status === 'PENDING' || r.status === 'CONFIRMED' ? 
+                                        `<button class="btn btn-danger" onclick="cancelReservation(${r.id})">取消</button>` : 
+                                        '-'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'PENDING': '待确认',
+                'CONFIRMED': '已确认',
+                'CHECKED_IN': '已入住',
+                'CHECKED_OUT': '已离店',
+                'CANCELLED': '已取消'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'PENDING': 'warning',
+                'CONFIRMED': 'success',
+                'CHECKED_IN': 'info',
+                'CHECKED_OUT': 'info',
+                'CANCELLED': 'danger'
+            };
+            return classMap[status] || 'info';
+        }
+
+        async function cancelReservation(id) {
+            if (!confirm('确定要取消此预订吗？')) {
+                return;
+            }
+
+            try {
+                await reservations.cancel(id);
+                alert('取消成功');
+                await loadReservations();
+            } catch (error) {
+                alert('取消失败: ' + error.message);
+            }
+        }
+
+        loadReservations();
+    </script>
+</body>
+</html>
+

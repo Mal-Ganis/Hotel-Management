@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>民宿管理系统 - 首页</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 100px 20px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        .hero p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        .features {
+            padding: 60px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .features h2 {
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .feature-card {
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统</h1>
+            <div class="nav-links">
+                <a href="/index.html">首页</a>
+                <a href="/guest/rooms.html">房间浏览</a>
+                <a href="/guest/login.html">宾客登录</a>
+                <a href="/admin/login.html">员工登录</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>欢迎来到民宿管理系统</h1>
+        <p>为您提供舒适的住宿体验</p>
+        <div class="btn-group">
+            <a href="/guest/rooms.html" class="btn btn-primary">浏览房间</a>
+            <a href="/guest/login.html" class="btn btn-secondary">宾客登录</a>
+        </div>
+    </div>
+
+    <div class="features">
+        <h2>系统功能</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>房间预订</h3>
+                <p>在线浏览房间信息，轻松完成预订</p>
+            </div>
+            <div class="feature-card">
+                <h3>在线支付</h3>
+                <p>安全便捷的支付方式</p>
+            </div>
+            <div class="feature-card">
+                <h3>订单管理</h3>
+                <p>查看和管理您的预订订单</p>
+            </div>
+            <div class="feature-card">
+                <h3>员工管理</h3>
+                <p>完善的员工管理系统</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 民宿管理系统. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
+

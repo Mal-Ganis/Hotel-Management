@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预订管理 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8080/">返回宾客端</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html" class="active">预订管理</a>
+            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <h2>预订管理</h2>
+            <div class="filter-section">
+                <form class="filter-form" id="filterForm">
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select id="statusFilter">
+                            <option value="">全部</option>
+                            <option value="PENDING">待确认</option>
+                            <option value="CONFIRMED">已确认</option>
+                            <option value="CHECKED_IN">已入住</option>
+                            <option value="CHECKED_OUT">已离店</option>
+                            <option value="CANCELLED">已取消</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>入住日期起</label>
+                        <input type="date" id="checkInStart">
+                    </div>
+                    <div class="form-group">
+                        <label>入住日期止</label>
+                        <input type="date" id="checkInEnd">
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">筛选</button>
+                    </div>
+                </form>
+            </div>
+            <div id="reservationsContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务不能访问预订管理 - 直接跳转
+        if (userRole === 'HOUSEKEEPING') {
+            alert('权限不足：房务无法访问预订管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            return;
+        }
+        
+        // 根据角色隐藏无权限的菜单项（如果房务通过其他方式进入）
+        if (userRole === 'HOUSEKEEPING') {
+            const reservationsLink = document.getElementById('reservationsMenuLink');
+            const guestsLink = document.getElementById('guestsMenuLink');
+            const statisticsLink = document.getElementById('statisticsMenuLink');
+            if (reservationsLink) reservationsLink.style.display = 'none';
+            if (guestsLink) guestsLink.style.display = 'none';
+            if (statisticsLink) statisticsLink.style.display = 'none';
+        }
+
+        async function loadReservations() {
+            const container = document.getElementById('reservationsContainer');
+            try {
+                const reservationList = await reservations.getAll();
+                displayReservations(reservationList);
+            } catch (error) {
+                console.error('加载预订失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        function displayReservations(reservationList) {
+            const container = document.getElementById('reservationsContainer');
+            if (!reservationList || reservationList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无预订记录</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>预订号</th>
+                            <th>宾客</th>
+                            <th>房间</th>
+                            <th>入住日期</th>
+                            <th>离店日期</th>
+                            <th>总金额</th>
+                            <th>已付金额</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reservationList.map(r => `
+                            <tr>
+                                <td>${r.reservationNumber || '-'}</td>
+                                <td>${r.guest ? r.guest.fullName : '未知'}</td>
+                                <td>${r.room ? r.room.roomNumber : '未分配'}</td>
+                                <td>${r.checkInDate || '-'}</td>
+                                <td>${r.checkOutDate || '-'}</td>
+                                <td>¥${r.totalAmount || 0}</td>
+                                <td>¥${r.paidAmount || 0}</td>
+                                <td><span class="badge badge-${getStatusClass(r.status)}">${getStatusText(r.status)}</span></td>
+                                <td>
+                                    ${getActionButtons(r)}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'PENDING': '待确认',
+                'CONFIRMED': '已确认',
+                'CHECKED_IN': '已入住',
+                'CHECKED_OUT': '已离店',
+                'CANCELLED': '已取消'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'PENDING': 'warning',
+                'CONFIRMED': 'success',
+                'CHECKED_IN': 'info',
+                'CHECKED_OUT': 'info',
+                'CANCELLED': 'danger'
+            };
+            return classMap[status] || 'info';
+        }
+
+        function getActionButtons(reservation) {
+            let buttons = '';
+
+            // 办理入住/退房 - 前台、经理、管理员可以操作
+            if (permissions.isReceptionistOrAbove()) {
+                if (reservation.status === 'CONFIRMED') {
+                    buttons += `<button class="btn btn-success" onclick="checkIn(${reservation.id})">办理入住</button> `;
+                }
+                if (reservation.status === 'CHECKED_IN') {
+                    buttons += `<button class="btn btn-primary" onclick="checkOut(${reservation.id})">办理退房</button> `;
+                }
+            }
+
+            // 删除预订 - 仅经理和管理员可以操作
+            if (permissions.isManagerOrAdmin() && reservation.status !== 'CHECKED_OUT') {
+                buttons += `<button class="btn btn-danger" onclick="deleteReservation(${reservation.id})">删除</button> `;
+            }
+
+            return buttons || '-';
+        }
+        
+        async function deleteReservation(id) {
+            if (!permissions.checkPermission(['MANAGER', 'ADMIN'], '删除预订')) {
+                return;
+            }
+            if (!confirm('确定要删除此预订吗？删除后无法恢复！')) return;
+            
+            try {
+                const response = await api.delete(`/reservations/${id}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    await loadReservations();
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除预订失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        async function checkIn(reservationId) {
+            if (!permissions.checkPermission(['RECEPTIONIST', 'MANAGER', 'ADMIN'], '办理入住')) {
+                return;
+            }
+            if (!confirm('确认办理入住？')) return;
+
+            try {
+                const response = await reservations.checkIn(reservationId, {});
+                if (response && response.success) {
+                    alert('入住办理成功');
+                    await loadReservations();
+                } else {
+                    alert('办理失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('办理入住失败:', error);
+                alert('办理失败: ' + error.message);
+            }
+        }
+
+        async function checkOut(reservationId) {
+            if (!permissions.checkPermission(['RECEPTIONIST', 'MANAGER', 'ADMIN'], '办理退房')) {
+                return;
+            }
+            if (!confirm('确认办理退房？')) return;
+
+            try {
+                const response = await reservations.checkOut(reservationId, {});
+                if (response && response.success) {
+                    alert('退房办理成功');
+                    await loadReservations();
+                } else {
+                    alert('办理失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('办理退房失败:', error);
+                alert('办理失败: ' + error.message);
+            }
+        }
+
+        document.getElementById('filterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await loadReservations();
+        });
+
+        loadReservations();
+    </script>
+</body>
+</html>
+
