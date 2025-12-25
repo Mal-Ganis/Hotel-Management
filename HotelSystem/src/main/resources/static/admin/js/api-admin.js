@@ -128,11 +128,20 @@ const auth = {
 // 房间相关
 const rooms = {
     async getAll() {
-        const response = await api.get('/rooms');
-        if (response && response.success) {
-            return response.data || [];
+        try {
+            const response = await api.get('/rooms');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取房间列表失败:', error);
+            throw error;
         }
-        throw new Error(response?.message || '获取房间列表失败');
     },
 
     async getById(id) {
@@ -171,11 +180,20 @@ const rooms = {
 // 预订相关
 const reservations = {
     async getAll() {
-        const response = await api.get('/reservations');
-        if (response && response.success) {
-            return response.data || [];
+        try {
+            const response = await api.get('/reservations');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取预订列表失败:', error);
+            throw error;
         }
-        throw new Error(response?.message || '获取预订列表失败');
     },
 
     async getById(id) {
@@ -248,11 +266,20 @@ const statistics = {
 // 宾客相关
 const guests = {
     async getAll() {
-        const response = await api.get('/guests');
-        if (response && response.success) {
-            return response.data || [];
+        try {
+            const response = await api.get('/guests');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取宾客列表失败:', error);
+            throw error;
         }
-        throw new Error(response?.message || '获取宾客列表失败');
     },
 
     async getById(id) {

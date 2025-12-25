@@ -81,10 +81,11 @@
             <h3>菜单</h3>
                 <a href="http://localhost:8081/admin/dashboard.html" class="active">仪表盘</a>
                 <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+                <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
                 <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
                 <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
                 <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
-            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
+                <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
                 <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
@@ -145,7 +146,7 @@
             
             // 根据角色隐藏无权限的菜单项
             if (userRole === 'HOUSEKEEPING') {
-                // 房务只能看仪表盘和房间管理
+                // 房务只能看仪表盘、房态管理和房间管理
                 const reservationsLink = document.getElementById('reservationsMenuLink');
                 const guestsLink = document.getElementById('guestsMenuLink');
                 const statisticsLink = document.getElementById('statisticsMenuLink');
