@@ -128,8 +128,20 @@ const auth = {
 // 房间相关
 const rooms = {
     async getAll() {
-        const response = await api.get('/rooms');
-        return response.data || [];
+        try {
+            const response = await api.get('/rooms');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取房间列表失败:', error);
+            throw error;
+        }
     },
 
     async getById(id) {
@@ -165,11 +177,20 @@ const rooms = {
 // 预订相关
 const reservations = {
     async getAll() {
-        const response = await api.get('/reservations');
-        if (response && response.success) {
-            return response.data || [];
+        try {
+            const response = await api.get('/reservations');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取预订列表失败:', error);
+            throw error;
         }
-        throw new Error(response?.message || '获取预订列表失败');
     },
 
     async getById(id) {
@@ -207,11 +228,20 @@ const statistics = {
 // 宾客相关
 const guests = {
     async getAll() {
-        const response = await api.get('/guests');
-        if (response && response.success) {
-            return response.data || [];
+        try {
+            const response = await api.get('/guests');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取宾客列表失败:', error);
+            throw error;
         }
-        throw new Error(response?.message || '获取宾客列表失败');
     },
 
     async getById(id) {
@@ -257,6 +287,41 @@ const users = {
     async delete(id) {
         const response = await api.delete(`/users/${id}`);
         return response;
+    }
+};
+
+// 系统设置相关
+const settings = {
+    async getAll() {
+        const response = await api.get('/settings');
+        if (response && response.success && response.data) {
+            return response.data;
+        }
+        return [];
+    },
+
+    async getByKey(key) {
+        const response = await api.get(`/settings/${key}`);
+        if (response && response.success && response.data) {
+            return response.data;
+        }
+        return null;
+    },
+
+    async save(settingData) {
+        const response = await api.post('/settings', settingData);
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '保存设置失败');
+    },
+
+    async update(key, settingData) {
+        const response = await api.put(`/settings/${key}`, settingData);
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '更新设置失败');
     }
 };
 

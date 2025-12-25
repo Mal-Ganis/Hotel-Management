@@ -47,10 +47,22 @@ public class StatisticsController {
      * 获取房型统计
      */
     @GetMapping("/room-types")
-    @PreAuthorize("hasAnyRole('RECEPTIONIST','MANAGER','ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRoomTypeStatistics() {
         Map<String, Object> stats = statisticsService.getRoomTypeStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    /**
+     * 获取完整的经营分析报表（收入、成本、利润）
+     */
+    @GetMapping("/business-analysis")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBusinessAnalysis(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        Map<String, Object> analysis = statisticsService.getBusinessAnalysis(startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.success(analysis));
     }
 }
 

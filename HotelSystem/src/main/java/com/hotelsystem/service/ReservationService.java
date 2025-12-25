@@ -4,6 +4,7 @@ import com.hotelsystem.dto.ReservationDto;
 import com.hotelsystem.entity.Guest;
 import com.hotelsystem.entity.Reservation;
 import com.hotelsystem.entity.Room;
+import com.hotelsystem.entity.Task;
 import com.hotelsystem.repository.GuestRepository;
 import com.hotelsystem.repository.ReservationRepository;
 import com.hotelsystem.repository.RoomRepository;
@@ -30,6 +31,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final GuestRepository guestRepository;
     private final RoomRepository roomRepository;
+    private final TaskService taskService;
     private final com.hotelsystem.service.PaymentService paymentService;
     private static final int MAX_ASSIGN_RETRIES = 3;
 
@@ -346,8 +348,6 @@ public class ReservationService {
         java.math.BigDecimal extras = extraCharges == null ? java.math.BigDecimal.ZERO : extraCharges;
         java.math.BigDecimal paid = reservation.getPaidAmount() == null ? java.math.BigDecimal.ZERO : reservation.getPaidAmount();
 
-        java.math.BigDecimal amountDue = totalAmount.add(extras).subtract(paid);
-
         // 如果前台收取补交金额
         if (collectAmount != null && collectAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
             paid = paid.add(collectAmount);
@@ -372,6 +372,23 @@ public class ReservationService {
 
         room.setStatus(Room.RoomStatus.CLEANING);
         roomRepository.save(room);
+
+        // 自动创建清洁任务
+        try {
+            taskService.createTask(
+                    "清洁房间 " + room.getRoomNumber(),
+                    "退房后需要清洁房间",
+                    Task.TaskType.CLEANING,
+                    room.getId(),
+                    reservation.getId(),
+                    null, // 未分配，等待房务员工认领
+                    7, // 中等优先级
+                    java.time.LocalDateTime.now().plusHours(2), // 2小时后截止
+                    staffName
+            );
+        } catch (Exception ex) {
+            // 任务创建失败不影响退房流程
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("reservationId", reservation.getId());

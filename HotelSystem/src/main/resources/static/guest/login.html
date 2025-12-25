@@ -50,34 +50,27 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1>民宿管理系统</h1>
-            <div class="nav-links">
-                <a href="/index.html">首页</a>
-                <a href="/guest/rooms.html">房间浏览</a>
-                <a href="/guest/login.html">宾客登录</a>
-            </div>
-        </div>
-    </nav>
 
     <div class="login-container">
         <h2>宾客登录</h2>
         <div id="alertContainer"></div>
         <form id="loginForm">
             <div class="form-group">
-                <label>邮箱</label>
-                <input type="email" id="email" required>
+                <label>姓名或邮箱</label>
+                <input type="text" id="username" placeholder="请输入姓名或邮箱" required>
             </div>
             <div class="form-group">
                 <label>密码</label>
                 <input type="password" id="password" required>
             </div>
             <button type="submit" class="btn btn-primary btn-block">登录</button>
+            <div class="register-link" style="margin-top: 15px;">
+                <p><a href="/guest/forgot-password.html">忘记密码？</a></p>
+            </div>
+            <div class="register-link">
+                <p>还没有账号？ <a href="/guest/register.html">立即注册</a></p>
+            </div>
         </form>
-        <div class="register-link">
-            <p>还没有账号？ <a href="/guest/register.html">立即注册</a></p>
-        </div>
     </div>
 
     <script src="/js/api.js"></script>
@@ -85,16 +78,17 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const alertContainer = document.getElementById('alertContainer');
 
             try {
-                const response = await auth.login(email, password, 'GUEST');
+                // 尝试通过邮箱或姓名登录
+                const response = await auth.login(username, password, 'GUEST');
                 if (response.success) {
                     alertContainer.innerHTML = '<div class="alert alert-success">登录成功！</div>';
                     setTimeout(() => {
-                        window.location.href = '/guest/rooms.html';
+                        window.location.href = '/index.html';
                     }, 1000);
                 } else {
                     alertContainer.innerHTML = `<div class="alert alert-error">${response.message || '登录失败'}</div>`;

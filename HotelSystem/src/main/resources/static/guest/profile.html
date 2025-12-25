@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .profile-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1em;
+            color: #666;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-section h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .reservation-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .reservation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .reservation-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            color: #666;
+        }
+        .info-item strong {
+            color: #333;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统</h1>
+            <div class="nav-links">
+                <a href="/index.html">首页</a>
+                <a href="/guest/rooms.html">房间浏览</a>
+                <a href="/guest/profile.html">个人中心</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="profile-container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('info')">个人信息</button>
+            <button class="tab" onclick="switchTab('orders')">我的订单</button>
+        </div>
+
+        <!-- 个人信息标签页 -->
+        <div id="infoTab" class="tab-content active">
+            <div class="form-section">
+                <h3>编辑个人信息</h3>
+                <div id="alertContainer"></div>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" id="fullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>身份证号</label>
+                        <input type="text" id="idCardNumber" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>手机号</label>
+                        <input type="tel" id="phone">
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>修改密码</h3>
+                <form id="passwordForm">
+                    <div class="form-group">
+                        <label>当前密码</label>
+                        <input type="password" id="currentPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label>新密码</label>
+                        <input type="password" id="newPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>确认新密码</label>
+                        <input type="password" id="confirmNewPassword" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary">修改密码</button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>密保问题</h3>
+                <form id="securityForm">
+                    <div class="form-group">
+                        <label>密保问题</label>
+                        <input type="text" id="securityQuestion" placeholder="例如：您的小学名称是什么？">
+                    </div>
+                    <div class="form-group">
+                        <label>密保答案</label>
+                        <input type="text" id="securityAnswer" placeholder="请输入密保答案">
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 我的订单标签页 -->
+        <div id="ordersTab" class="tab-content">
+            <div id="ordersContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 取消订单确认弹窗 -->
+    <div id="cancelModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:400px; width:90%; background:white; padding:30px; border-radius:10px;">
+            <h2>取消订单</h2>
+            <div id="cancelInfo" style="margin:20px 0;"></div>
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-primary" onclick="confirmCancel()">确认取消</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        // 权限拦截
+        if (!auth.isAuthenticated() || auth.getUserRole() !== 'GUEST') {
+            alert('请先登录');
+            window.location.href = '/guest/login.html';
+        }
+
+        let currentGuest = null;
+        let cancelReservationId = null;
+
+        // 切换标签页
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tabName === 'info') {
+                document.querySelector('.tab:first-child').classList.add('active');
+                document.getElementById('infoTab').classList.add('active');
+            } else {
+                document.querySelector('.tab:last-child').classList.add('active');
+                document.getElementById('ordersTab').classList.add('active');
+                loadOrders();
+            }
+        }
+
+        // 加载个人信息
+        async function loadProfile() {
+            try {
+                const response = await api.get('/guests/me');
+                if (response.success && response.data) {
+                    currentGuest = response.data;
+                    document.getElementById('fullName').value = currentGuest.fullName || '';
+                    document.getElementById('idCardNumber').value = currentGuest.idCardNumber || '';
+                    document.getElementById('email').value = currentGuest.email || '';
+                    document.getElementById('phone').value = currentGuest.phone || '';
+                    document.getElementById('securityQuestion').value = currentGuest.securityQuestion || '';
+                }
+            } catch (error) {
+                console.error('加载个人信息失败:', error);
+            }
+        }
+
+        // 保存个人信息
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertContainer = document.getElementById('alertContainer');
+
+            try {
+                const updateData = {
+                    fullName: document.getElementById('fullName').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value
+                };
+
+                const response = await api.put(`/guests/${currentGuest.id}`, updateData);
+                if (response.success) {
+                    alertContainer.innerHTML = '<div class="alert alert-success">保存成功</div>';
+                    await loadProfile();
+                } else {
+                    alertContainer.innerHTML = `<div class="alert alert-error">${response.message || '保存失败'}</div>`;
+                }
+            } catch (error) {
+                alertContainer.innerHTML = `<div class="alert alert-error">${error.message || '保存失败'}</div>`;
+            }
+        });
+
+        // 修改密码
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (newPassword !== confirmNewPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+
+            // 这里需要先验证当前密码，然后更新密码
+            // 由于后端没有单独的修改密码接口，需要通过更新整个Guest对象来实现
+            try {
+                const updateData = {
+                    fullName: currentGuest.fullName,
+                    email: currentGuest.email,
+                    phone: currentGuest.phone,
+                    password: newPassword
+                };
+
+                const response = await api.put(`/guests/${currentGuest.id}`, updateData);
+                if (response.success) {
+                    alert('密码修改成功，请重新登录');
+                    auth.logout();
+                } else {
+                    alert('密码修改失败: ' + (response.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('密码修改失败: ' + (error.message || '未知错误'));
+            }
+        });
+
+        // 保存密保问题
+        document.getElementById('securityForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const updateData = {
+                    fullName: currentGuest.fullName,
+                    email: currentGuest.email,
+                    phone: currentGuest.phone,
+                    securityQuestion: document.getElementById('securityQuestion').value,
+                    securityAnswer: document.getElementById('securityAnswer').value
+                };
+
+                const response = await api.put(`/guests/${currentGuest.id}`, updateData);
+                if (response.success) {
+                    alert('密保问题保存成功');
+                    await loadProfile();
+                } else {
+                    alert('保存失败: ' + (response.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('保存失败: ' + (error.message || '未知错误'));
+            }
+        });
+
+        // 加载订单
+        async function loadOrders() {
+            try {
+                const reservationList = await reservations.getMyReservations();
+                displayOrders(reservationList);
+            } catch (error) {
+                document.getElementById('ordersContainer').innerHTML = 
+                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 显示订单
+        function displayOrders(reservationList) {
+            const container = document.getElementById('ordersContainer');
+            if (reservationList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无订单</div>';
+                return;
+            }
+
+            container.innerHTML = reservationList.map(r => `
+                <div class="reservation-item">
+                    <div class="reservation-header">
+                        <h3>订单号: ${r.reservationNumber || r.id}</h3>
+                        <span class="badge badge-${getStatusClass(r.status)}">${getStatusText(r.status)}</span>
+                    </div>
+                    <div class="reservation-info">
+                        <div class="info-item">
+                            <strong>房间号:</strong>${r.roomNumber || '未分配'}
+                        </div>
+                        <div class="info-item">
+                            <strong>入住日期:</strong>${r.checkInDate}
+                        </div>
+                        <div class="info-item">
+                            <strong>离店日期:</strong>${r.checkOutDate}
+                        </div>
+                        <div class="info-item">
+                            <strong>入住人数:</strong>${r.numberOfGuests || 1}
+                        </div>
+                        <div class="info-item">
+                            <strong>总金额:</strong>¥${r.totalAmount || 0}
+                        </div>
+                        <div class="info-item">
+                            <strong>已付金额:</strong>¥${r.paidAmount || 0}
+                        </div>
+                    </div>
+                    ${r.status === 'PENDING' || r.status === 'CONFIRMED' ? 
+                        `<button class="btn btn-danger" onclick="openCancelModal(${r.id})">取消订单</button>` : 
+                        ''}
+                </div>
+            `).join('');
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'PENDING': '待确认',
+                'CONFIRMED': '已确认',
+                'CHECKED_IN': '已入住',
+                'CHECKED_OUT': '已离店',
+                'CANCELLED': '已取消'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'PENDING': 'warning',
+                'CONFIRMED': 'success',
+                'CHECKED_IN': 'info',
+                'CHECKED_OUT': 'info',
+                'CANCELLED': 'danger'
+            };
+            return classMap[status] || 'info';
+        }
+
+        let cancelTransactionId = null;
+
+        // 打开取消订单弹窗
+        async function openCancelModal(reservationId) {
+            cancelReservationId = reservationId;
+            
+            try {
+                const response = await api.post(`/reservations/${reservationId}/cancel`);
+                if (response.success && response.data) {
+                    const refundAmount = response.data.refundAmount || 0;
+                    cancelTransactionId = response.data.transactionId;
+                    document.getElementById('cancelInfo').innerHTML = `
+                        <p>订单取消成功！</p>
+                        <p><strong>退回金额：</strong><span style="color:#667eea; font-size:1.2em;">¥${refundAmount.toFixed(2)}</span></p>
+                        <p style="color:#666; margin-top:10px;">退款将按原支付方式退回</p>
+                    `;
+                    document.getElementById('cancelModal').style.display = 'flex';
+                } else {
+                    alert('取消失败: ' + (response.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('取消失败: ' + (error.message || '未知错误'));
+            }
+        }
+
+        // 确认取消（调用支付回调完成退款，然后刷新订单列表）
+        async function confirmCancel() {
+            if (!cancelTransactionId) {
+                alert('交易ID不存在');
+                closeCancelModal();
+                return;
+            }
+
+            try {
+                // 调用支付回调接口完成退款
+                const callbackResponse = await api.post('/payments/callback', {
+                    transactionId: cancelTransactionId,
+                    status: 'SUCCESS',
+                    providerTransactionId: 'REFUND_' + Date.now()
+                });
+
+                if (callbackResponse.success) {
+                    alert('退款处理成功！订单已取消');
+                    closeCancelModal();
+                    loadOrders();
+                } else {
+                    alert('退款处理失败: ' + (callbackResponse.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('退款回调失败:', error);
+                alert('退款处理失败: ' + (error.message || '未知错误'));
+            }
+        }
+
+        // 关闭取消弹窗
+        function closeCancelModal() {
+            document.getElementById('cancelModal').style.display = 'none';
+            cancelReservationId = null;
+            cancelTransactionId = null;
+        }
+
+        // 初始化
+        loadProfile();
+    </script>
+</body>
+</html>
+

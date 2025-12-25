@@ -81,9 +81,11 @@
             <h3>菜单</h3>
                 <a href="http://localhost:8081/admin/dashboard.html" class="active">仪表盘</a>
                 <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+                <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
                 <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
                 <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
                 <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+                <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
                 <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
@@ -119,13 +121,21 @@
         
         // 根据角色隐藏无权限的菜单项
         if (userRole === 'HOUSEKEEPING') {
-            // 房务只能看仪表盘和房间管理
+            // 房务只能看仪表盘、房态管理和房间管理
             const reservationsLink = document.getElementById('reservationsMenuLink');
             const guestsLink = document.getElementById('guestsMenuLink');
             const statisticsLink = document.getElementById('statisticsMenuLink');
+            const settingsLink = document.getElementById('settingsMenuLink');
             if (reservationsLink) reservationsLink.style.display = 'none';
             if (guestsLink) guestsLink.style.display = 'none';
             if (statisticsLink) statisticsLink.style.display = 'none';
+            if (settingsLink) settingsLink.style.display = 'none';
+        }
+        
+        // 规则设置只有经理和管理员可以访问
+        if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+            const settingsLink = document.getElementById('settingsMenuLink');
+            if (settingsLink) settingsLink.style.display = 'none';
         }
 
         async function loadStatistics() {

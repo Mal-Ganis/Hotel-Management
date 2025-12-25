@@ -50,6 +50,12 @@ public class Guest {
     @Size(max = 500)
     private String specialRequests; // 特殊要求
 
+    @Size(max = 200)
+    private String securityQuestion; // 密保问题
+
+    @Size(max = 200)
+    private String securityAnswer; // 密保答案（已加密）
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

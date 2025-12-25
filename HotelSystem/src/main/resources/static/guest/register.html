@@ -35,16 +35,6 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1>民宿管理系统</h1>
-            <div class="nav-links">
-                <a href="/index.html">首页</a>
-                <a href="/guest/rooms.html">房间浏览</a>
-                <a href="/guest/login.html">宾客登录</a>
-            </div>
-        </div>
-    </nav>
 
     <div class="register-container">
         <h2>宾客注册</h2>
@@ -74,6 +64,14 @@
                 <label>确认密码</label>
                 <input type="password" id="confirmPassword" required>
             </div>
+            <div class="form-group">
+                <label>密保问题（可选，用于找回密码）</label>
+                <input type="text" id="securityQuestion" placeholder="例如：您的小学名称是什么？">
+            </div>
+            <div class="form-group">
+                <label>密保答案（可选）</label>
+                <input type="text" id="securityAnswer" placeholder="请输入密保答案">
+            </div>
             <button type="submit" class="btn btn-primary btn-block">注册</button>
         </form>
         <div class="login-link">
@@ -100,7 +98,9 @@
                 idCardNumber: document.getElementById('idCardNumber').value,
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
-                password: password
+                password: password,
+                securityQuestion: document.getElementById('securityQuestion').value || null,
+                securityAnswer: document.getElementById('securityAnswer').value || null
             };
 
             try {
