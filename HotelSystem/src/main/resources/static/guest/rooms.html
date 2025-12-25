@@ -94,9 +94,8 @@
             <div class="nav-links">
                 <a href="/index.html">首页</a>
                 <a href="/guest/rooms.html">房间浏览</a>
-                <a href="/guest/login.html">宾客登录</a>
-                <a href="/guest/reservations.html" id="myReservationsLink" style="display:none;">我的预订</a>
-                <a href="#" onclick="auth.logout(); return false;" id="logoutLink" style="display:none;">退出</a>
+                <a href="/guest/profile.html">个人中心</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
             </div>
         </div>
     </nav>
@@ -107,16 +106,24 @@
             <form class="search-form" id="searchForm">
                 <div class="form-group">
                     <label>入住日期</label>
-                    <input type="date" id="checkInDate" required>
+                    <input type="date" id="checkInDate">
                 </div>
                 <div class="form-group">
                     <label>离店日期</label>
-                    <input type="date" id="checkOutDate" required>
+                    <input type="date" id="checkOutDate">
                 </div>
                 <div class="form-group">
                     <label>房型</label>
                     <select id="roomType">
                         <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>价格排序</label>
+                    <select id="priceSort">
+                        <option value="">默认</option>
+                        <option value="asc">从低到高</option>
+                        <option value="desc">从高到低</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -132,10 +139,11 @@
 
     <!-- 预订模态框 -->
     <div id="bookingModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-        <div class="card" style="max-width:500px; width:90%;">
+        <div class="card" style="max-width:500px; width:90%; background:white; padding:30px; border-radius:10px;">
             <h2>预订房间</h2>
             <form id="bookingForm">
                 <input type="hidden" id="bookingRoomId">
+                <input type="hidden" id="bookingRoomPrice">
                 <div class="form-group">
                     <label>房间号</label>
                     <input type="text" id="bookingRoomNumber" readonly>
@@ -164,13 +172,30 @@
         </div>
     </div>
 
+    <!-- 支付模态框 -->
+    <div id="paymentModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1001; align-items:center; justify-content:center;">
+        <div class="card" style="max-width:400px; width:90%; background:white; padding:30px; border-radius:10px;">
+            <h2>模拟支付</h2>
+            <div style="margin:20px 0;">
+                <p><strong>预订保证金：</strong><span id="paymentAmount" style="color:#667eea; font-size:1.5em; font-weight:bold;">¥0</span></p>
+                <p style="color:#666; margin-top:10px;">点击确认支付完成模拟支付流程</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-primary" onclick="confirmPayment()">确认支付</button>
+                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script>
-        // 检查登录状态
-        if (auth.isAuthenticated() && auth.getUserRole() === 'GUEST') {
-            document.getElementById('myReservationsLink').style.display = 'inline';
-            document.getElementById('logoutLink').style.display = 'inline';
+        // 权限拦截
+        if (!auth.isAuthenticated() || auth.getUserRole() !== 'GUEST') {
+            alert('请先登录');
+            window.location.href = '/guest/login.html';
         }
+
+        // 检查登录状态（移除对不存在元素的引用）
 
         // 设置默认日期
         const today = new Date().toISOString().split('T')[0];
@@ -178,16 +203,76 @@
         document.getElementById('checkInDate').value = today;
         document.getElementById('checkOutDate').value = tomorrow;
 
+        let allRooms = [];
+        let currentReservation = null;
+
         // 加载房间列表
         async function loadRooms() {
+            const container = document.getElementById('roomsContainer');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
             try {
                 const roomList = await rooms.getAll();
-                displayRooms(roomList);
-                populateRoomTypes(roomList);
+                console.log('获取到的房间列表:', roomList);
+                
+                if (!Array.isArray(roomList)) {
+                    throw new Error('房间数据格式错误');
+                }
+                
+                allRooms = roomList;
+                filterAndDisplayRooms();
+                populateRoomTypes(allRooms);
             } catch (error) {
-                document.getElementById('roomsContainer').innerHTML = 
-                    `<div class="alert alert-error">加载失败: ${error.message}</div>`;
+                console.error('加载房间失败:', error);
+                container.innerHTML = 
+                    `<div class="alert alert-error">加载失败: ${error.message || '未知错误'}</div>`;
             }
+        }
+
+        // 过滤和显示房间
+        function filterAndDisplayRooms() {
+            const container = document.getElementById('roomsContainer');
+            
+            if (!Array.isArray(allRooms) || allRooms.length === 0) {
+                container.innerHTML = '<div class="alert">暂无房间数据</div>';
+                return;
+            }
+            
+            let filteredRooms = [...allRooms];
+            
+            // 按日期过滤
+            const checkInDate = document.getElementById('checkInDate').value;
+            const checkOutDate = document.getElementById('checkOutDate').value;
+            
+            if (checkInDate && checkOutDate) {
+                // 这里简化处理，实际应该调用后端API检查房间可用性
+                // 暂时只显示状态为AVAILABLE的房间
+                filteredRooms = filteredRooms.filter(room => room.status === 'AVAILABLE');
+            }
+            
+            // 按房型过滤
+            const roomType = document.getElementById('roomType').value;
+            if (roomType) {
+                filteredRooms = filteredRooms.filter(room => room.roomType === roomType);
+            }
+            
+            // 价格排序
+            const priceSort = document.getElementById('priceSort').value;
+            if (priceSort === 'asc') {
+                filteredRooms.sort((a, b) => {
+                    const priceA = parseFloat(a.price) || 0;
+                    const priceB = parseFloat(b.price) || 0;
+                    return priceA - priceB;
+                });
+            } else if (priceSort === 'desc') {
+                filteredRooms.sort((a, b) => {
+                    const priceA = parseFloat(a.price) || 0;
+                    const priceB = parseFloat(b.price) || 0;
+                    return priceB - priceA;
+                });
+            }
+            
+            displayRooms(filteredRooms);
         }
 
         function populateRoomTypes(roomList) {
@@ -243,14 +328,9 @@
         }
 
         function openBookingModal(roomId, roomNumber, price) {
-            if (!auth.isAuthenticated()) {
-                alert('请先登录');
-                window.location.href = '/guest/login.html';
-                return;
-            }
-
             document.getElementById('bookingRoomId').value = roomId;
             document.getElementById('bookingRoomNumber').value = roomNumber;
+            document.getElementById('bookingRoomPrice').value = price;
             document.getElementById('bookingCheckIn').value = document.getElementById('checkInDate').value;
             document.getElementById('bookingCheckOut').value = document.getElementById('checkOutDate').value;
             document.getElementById('bookingModal').style.display = 'flex';
@@ -263,7 +343,15 @@
         // 搜索表单提交
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await loadRooms();
+            const container = document.getElementById('roomsContainer');
+            container.innerHTML = '<div class="loading">搜索中...</div>';
+            
+            // 如果还没有加载房间列表，先加载
+            if (!Array.isArray(allRooms) || allRooms.length === 0) {
+                await loadRooms();
+            } else {
+                filterAndDisplayRooms();
+            }
         });
 
         // 预订表单提交
@@ -275,18 +363,17 @@
             const guests = parseInt(document.getElementById('bookingGuests').value);
             const requests = document.getElementById('bookingRequests').value;
             const roomId = parseInt(document.getElementById('bookingRoomId').value);
+            const roomPrice = parseFloat(document.getElementById('bookingRoomPrice').value);
 
-            // 获取宾客ID（需要先登录）
-            if (!auth.isAuthenticated()) {
-                alert('请先登录');
-                window.location.href = '/guest/login.html';
-                return;
-            }
+            // 计算总金额（天数 × 价格）
+            const checkInDate = new Date(checkIn);
+            const checkOutDate = new Date(checkOut);
+            const days = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+            const totalAmount = days * roomPrice;
 
             try {
                 // 创建预订（guestId由后端从token中自动获取）
-                const reservation = await reservations.create({
-                    guestId: null, // 后端会从token中自动获取
+                const response = await reservations.create({
                     roomId: roomId,
                     checkInDate: checkIn,
                     checkOutDate: checkOut,
@@ -294,22 +381,58 @@
                     specialRequests: requests
                 });
 
-                alert('预订成功！请完成支付');
-                closeBookingModal();
-                
-                // 创建支付
-                const payment = await payments.createPayment(reservation.id, reservation.totalAmount, '预订支付');
-                
-                // 模拟支付成功
-                if (confirm('是否模拟支付成功？')) {
-                    await payments.simulatePayment(payment.transactionId);
-                    alert('支付成功！预订已确认');
-                    await loadRooms();
+                if (response && response.id) {
+                    currentReservation = response;
+                    closeBookingModal();
+                    
+                    // 显示支付弹窗
+                    document.getElementById('paymentAmount').textContent = '¥' + totalAmount.toFixed(2);
+                    document.getElementById('paymentModal').style.display = 'flex';
+                } else {
+                    alert('预订失败: ' + (response.message || '未知错误'));
                 }
             } catch (error) {
-                alert('预订失败: ' + error.message);
+                console.error('预订错误:', error);
+                alert('预订失败: ' + (error.message || '未知错误'));
             }
         });
+
+        // 确认支付
+        async function confirmPayment() {
+            if (!currentReservation || !currentReservation.id) {
+                alert('订单信息错误');
+                return;
+            }
+
+            try {
+                // 创建支付交易
+                const paymentResponse = await payments.createPayment(
+                    currentReservation.id, 
+                    currentReservation.totalAmount || parseFloat(document.getElementById('paymentAmount').textContent.replace('¥', '')),
+                    '预订保证金'
+                );
+
+                if (paymentResponse && paymentResponse.transactionId) {
+                    // 模拟支付成功
+                    await payments.simulatePayment(paymentResponse.transactionId);
+                    
+                    closePaymentModal();
+                    alert('支付成功！预订已确认');
+                    await loadRooms();
+                } else {
+                    alert('支付失败: ' + (paymentResponse.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('支付错误:', error);
+                alert('支付失败: ' + (error.message || '未知错误'));
+            }
+        }
+
+        // 关闭支付弹窗
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            currentReservation = null;
+        }
 
         // 初始加载
         loadRooms();

@@ -47,8 +47,14 @@ class ApiClient {
                 throw new Error('响应格式错误: ' + text.substring(0, 100));
             }
             
+            // 检查HTTP状态码
             if (!response.ok) {
-                throw new Error(data.message || '请求失败');
+                throw new Error(data.message || data.error || '请求失败');
+            }
+            
+            // 如果返回的是ApiResponse格式，检查success字段
+            if (data && typeof data === 'object' && 'success' in data && !data.success) {
+                throw new Error(data.message || data.error || '请求失败');
             }
             
             return data;
@@ -118,13 +124,28 @@ const auth = {
 // 房间相关
 const rooms = {
     async getAll() {
-        const response = await api.get('/rooms');
-        return response.data || [];
+        try {
+            const response = await api.get('/rooms');
+            if (response && response.success && response.data) {
+                return response.data;
+            } else if (response && Array.isArray(response.data)) {
+                return response.data;
+            } else if (Array.isArray(response)) {
+                return response;
+            }
+            return [];
+        } catch (error) {
+            console.error('获取房间列表失败:', error);
+            throw error;
+        }
     },
 
     async getById(id) {
         const response = await api.get(`/rooms/${id}`);
-        return response.data;
+        if (response && response.success && response.data) {
+            return response.data;
+        }
+        return response.data || response;
     },
 
     async getAvailable(checkInDate, checkOutDate) {
@@ -137,17 +158,28 @@ const rooms = {
 const reservations = {
     async create(reservationData) {
         const response = await api.post('/reservations', reservationData);
-        return response.data;
+        if (response.success && response.data) {
+            return response.data;
+        } else {
+            throw new Error(response.message || '创建预订失败');
+        }
     },
 
     async getMyReservations() {
         const response = await api.get('/reservations/me');
-        return response.data || [];
+        if (response.success && response.data) {
+            return response.data;
+        }
+        return [];
     },
 
     async cancel(id) {
         const response = await api.post(`/reservations/${id}/cancel`);
-        return response.data;
+        if (response.success) {
+            return response.data || response;
+        } else {
+            throw new Error(response.message || '取消预订失败');
+        }
     }
 };
 

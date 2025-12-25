@@ -384,6 +384,38 @@ const logs = {
             return response.data || [];
         }
         throw new Error(response?.message || '获取最近操作日志失败');
+// 系统设置相关
+const settings = {
+    async getAll() {
+        const response = await api.get('/settings');
+        if (response && response.success && response.data) {
+            return response.data;
+        }
+        return [];
+    },
+
+    async getByKey(key) {
+        const response = await api.get(`/settings/${key}`);
+        if (response && response.success && response.data) {
+            return response.data;
+        }
+        return null;
+    },
+
+    async save(settingData) {
+        const response = await api.post('/settings', settingData);
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '保存设置失败');
+    },
+
+    async update(key, settingData) {
+        const response = await api.put(`/settings/${key}`, settingData);
+        if (response && response.success) {
+            return response.data;
+        }
+        throw new Error(response?.message || '更新设置失败');
     }
 };
 

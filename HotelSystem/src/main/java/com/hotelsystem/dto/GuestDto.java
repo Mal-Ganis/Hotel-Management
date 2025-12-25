@@ -45,6 +45,13 @@ public class GuestDto {
     @Size(max = 500, message = "特殊要求长度不能超过500个字符")
     private String specialRequests;
 
+    @Size(max = 200, message = "密保问题长度不能超过200个字符")
+    private String securityQuestion; // 密保问题
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Size(max = 200, message = "密保答案长度不能超过200个字符")
+    private String securityAnswer; // 密保答案
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -60,6 +67,7 @@ public class GuestDto {
         dto.setAddress(guest.getAddress());
         dto.setPreferences(guest.getPreferences());
         dto.setSpecialRequests(guest.getSpecialRequests());
+        dto.setSecurityQuestion(guest.getSecurityQuestion());
         dto.setCreatedAt(guest.getCreatedAt());
         dto.setUpdatedAt(guest.getUpdatedAt());
         return dto;
@@ -77,6 +85,8 @@ public class GuestDto {
         guest.setAddress(this.address);
         guest.setPreferences(this.preferences);
         guest.setSpecialRequests(this.specialRequests);
+        guest.setSecurityQuestion(this.securityQuestion);
+        guest.setSecurityAnswer(this.securityAnswer);
         return guest;
     }
 }

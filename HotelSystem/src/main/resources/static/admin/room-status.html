@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房态管理 - 民宿管理系统</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        .room-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .room-card {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            background: white;
+            transition: all 0.3s;
+        }
+        .room-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .room-card.status-available {
+            border-color: #28a745;
+        }
+        .room-card.status-occupied {
+            border-color: #dc3545;
+        }
+        .room-card.status-reserved {
+            border-color: #ffc107;
+        }
+        .room-card.status-cleaning {
+            border-color: #17a2b8;
+        }
+        .room-card.status-maintenance {
+            border-color: #6c757d;
+        }
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .room-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        .status-available { background: #d4edda; color: #155724; }
+        .status-occupied { background: #f8d7da; color: #721c24; }
+        .status-reserved { background: #fff3cd; color: #856404; }
+        .status-cleaning { background: #d1ecf1; color: #0c5460; }
+        .status-maintenance { background: #e2e3e5; color: #383d41; }
+        .room-info {
+            margin: 10px 0;
+            color: #666;
+        }
+        .room-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-status {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .btn-status:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>民宿管理系统 - 管理后台</h1>
+            <div class="nav-links">
+                <a href="http://localhost:8081/admin/dashboard.html">返回首页</a>
+                <a href="#" onclick="auth.logout(); return false;">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h3>菜单</h3>
+            <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" class="active">房态管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+        </div>
+
+        <div class="main-content">
+            <h2>房态管理</h2>
+            <div class="filter-section">
+                <form class="filter-form" id="filterForm">
+                    <div class="form-group">
+                        <label>房型</label>
+                        <select id="roomTypeFilter">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select id="statusFilter">
+                            <option value="">全部</option>
+                            <option value="AVAILABLE">空闲</option>
+                            <option value="OCCUPIED">已入住</option>
+                            <option value="RESERVED">已预订</option>
+                            <option value="CLEANING">清洁中</option>
+                            <option value="MAINTENANCE">维修中</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">筛选</button>
+                        <button type="button" class="btn btn-secondary" onclick="loadRooms()">刷新</button>
+                    </div>
+                </form>
+            </div>
+            <div id="roomsContainer">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/api-admin.js"></script>
+    <script src="/admin/js/permissions.js"></script>
+    <script>
+        // 检查登录状态
+        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+            alert('请先登录');
+            window.location.href = 'http://localhost:8081/admin/login.html';
+        }
+        
+        // 根据权限显示/隐藏菜单
+        const userRole = auth.getUserRole();
+        if (userRole === 'ADMIN') {
+            const usersMenuLink = document.getElementById('usersMenuLink');
+            if (usersMenuLink) {
+                usersMenuLink.style.display = 'block';
+            }
+        }
+        
+        // 房务和前台可以访问房态管理
+        if (userRole !== 'HOUSEKEEPING' && userRole !== 'RECEPTIONIST' && userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+            alert('权限不足：只有前台、房务、经理和管理员可以访问房态管理');
+            window.location.href = 'http://localhost:8081/admin/dashboard.html';
+        }
+
+        let allRooms = [];
+
+        async function loadRooms() {
+            const container = document.getElementById('roomsContainer');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                allRooms = await rooms.getAll();
+                filterAndDisplayRooms();
+                populateRoomTypes(allRooms);
+            } catch (error) {
+                console.error('加载房间失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        function populateRoomTypes(roomList) {
+            const types = [...new Set(roomList.map(r => r.roomType))];
+            const select = document.getElementById('roomTypeFilter');
+            select.innerHTML = '<option value="">全部</option>';
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                select.appendChild(option);
+            });
+        }
+
+        function filterAndDisplayRooms() {
+            let filteredRooms = [...allRooms];
+            
+            const roomType = document.getElementById('roomTypeFilter').value;
+            if (roomType) {
+                filteredRooms = filteredRooms.filter(room => room.roomType === roomType);
+            }
+            
+            const status = document.getElementById('statusFilter').value;
+            if (status) {
+                filteredRooms = filteredRooms.filter(room => room.status === status);
+            }
+            
+            displayRooms(filteredRooms);
+        }
+
+        function displayRooms(roomList) {
+            const container = document.getElementById('roomsContainer');
+            if (!roomList || roomList.length === 0) {
+                container.innerHTML = '<div class="alert">暂无房间</div>';
+                return;
+            }
+
+            container.innerHTML = roomList.map(room => `
+                <div class="room-card status-${room.status.toLowerCase()}">
+                    <div class="room-header">
+                        <div class="room-number">${room.roomNumber}</div>
+                        <span class="status-badge status-${room.status.toLowerCase()}">${getStatusText(room.status)}</span>
+                    </div>
+                    <div class="room-info">
+                        <div><strong>房型：</strong>${room.roomType}</div>
+                        <div><strong>价格：</strong>¥${room.price}/晚</div>
+                        <div><strong>可住：</strong>${room.capacity}人</div>
+                    </div>
+                    <div class="room-actions">
+                        ${getStatusButtons(room)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'AVAILABLE': '空闲',
+                'OCCUPIED': '已入住',
+                'RESERVED': '已预订',
+                'CLEANING': '清洁中',
+                'MAINTENANCE': '维修中'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getStatusButtons(room) {
+            let buttons = '';
+            const currentStatus = room.status;
+            
+            // 根据当前状态显示可切换的状态按钮
+            if (currentStatus === 'OCCUPIED') {
+                // 已入住 -> 清洁中（退房后）
+                buttons += `<button class="btn-status btn btn-info" onclick="updateStatus(${room.id}, 'CLEANING')">标记为清洁中</button>`;
+            } else if (currentStatus === 'CLEANING') {
+                // 清洁中 -> 空闲（清洁完成）
+                buttons += `<button class="btn-status btn btn-success" onclick="updateStatus(${room.id}, 'AVAILABLE')">标记为空闲</button>`;
+                buttons += `<button class="btn-status btn btn-warning" onclick="updateStatus(${room.id}, 'MAINTENANCE')">标记为维修中</button>`;
+            } else if (currentStatus === 'MAINTENANCE') {
+                // 维修中 -> 清洁中（维修完成）
+                buttons += `<button class="btn-status btn btn-info" onclick="updateStatus(${room.id}, 'CLEANING')">标记为清洁中</button>`;
+            } else if (currentStatus === 'AVAILABLE') {
+                // 空闲 -> 维修中（发现故障）
+                buttons += `<button class="btn-status btn btn-warning" onclick="updateStatus(${room.id}, 'MAINTENANCE')">标记为维修中</button>`;
+            } else if (currentStatus === 'RESERVED') {
+                // 已预订 -> 已入住（办理入住时由前台操作，这里不显示）
+                buttons += `<span style="color:#666;">已预订，等待入住</span>`;
+            }
+            
+            return buttons || '<span style="color:#666;">无需操作</span>';
+        }
+
+        async function updateStatus(roomId, newStatus) {
+            if (!confirm(`确定要将房间状态更新为"${getStatusText(newStatus)}"吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await api.put(`/rooms/${roomId}/status?status=${newStatus}`);
+                if (response && response.success) {
+                    alert('房间状态更新成功');
+                    await loadRooms();
+                } else {
+                    alert('更新失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('更新房间状态失败:', error);
+                alert('更新失败: ' + (error.message || '未知错误'));
+            }
+        }
+
+        document.getElementById('filterForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            filterAndDisplayRooms();
+        });
+
+        loadRooms();
+    </script>
+</body>
+</html>
+

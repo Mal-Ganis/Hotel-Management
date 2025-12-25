@@ -42,6 +42,10 @@ public class GuestService {
         Guest guest = guestDto.toEntity();
         // 加密密码
         guest.setPassword(passwordEncoder.encode(guest.getPassword()));
+        // 加密密保答案（如果提供）
+        if (guest.getSecurityAnswer() != null && !guest.getSecurityAnswer().isBlank()) {
+            guest.setSecurityAnswer(passwordEncoder.encode(guest.getSecurityAnswer()));
+        }
         Guest savedGuest = guestRepository.save(guest);
         return GuestDto.fromEntity(savedGuest);
     }
@@ -68,6 +72,12 @@ public class GuestService {
         existingGuest.setAddress(guestDto.getAddress());
         existingGuest.setPreferences(guestDto.getPreferences());
         existingGuest.setSpecialRequests(guestDto.getSpecialRequests());
+        if (guestDto.getSecurityQuestion() != null) {
+            existingGuest.setSecurityQuestion(guestDto.getSecurityQuestion());
+        }
+        if (guestDto.getSecurityAnswer() != null && !guestDto.getSecurityAnswer().isBlank()) {
+            existingGuest.setSecurityAnswer(passwordEncoder.encode(guestDto.getSecurityAnswer()));
+        }
 
         Guest updatedGuest = guestRepository.save(existingGuest);
         return GuestDto.fromEntity(updatedGuest);
