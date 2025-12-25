@@ -42,9 +42,9 @@ public class ReservationController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('GUEST','RECEPTIONIST','MANAGER','ADMIN')")
-    public ResponseEntity<ApiResponse<ReservationDto>> createReservation(@RequestBody ReservationDto reservationDto, Authentication authentication) {
+    public ResponseEntity<ApiResponse<ReservationDto>> createReservation(@Valid @RequestBody ReservationDto reservationDto, Authentication authentication) {
         try {
-            // 如果是宾客，从token中获取guestId（在验证之前设置）
+            // 如果是宾客，从token中获取guestId
             if (authentication != null && authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GUEST"))) {
                 String email = authentication.getName();
                 var guestOpt = guestRepository.findByEmail(email);
@@ -56,17 +56,6 @@ public class ReservationController {
             } else if (reservationDto.getGuestId() == null) {
                 // 员工创建预订时必须提供guestId
                 return ResponseEntity.status(400).body(ApiResponse.error("创建预订时必须指定宾客ID"));
-            }
-
-            // 手动验证必填字段
-            if (reservationDto.getGuestId() == null) {
-                return ResponseEntity.status(400).body(ApiResponse.error("宾客ID不能为空"));
-            }
-            if (reservationDto.getCheckInDate() == null) {
-                return ResponseEntity.status(400).body(ApiResponse.error("入住日期不能为空"));
-            }
-            if (reservationDto.getCheckOutDate() == null) {
-                return ResponseEntity.status(400).body(ApiResponse.error("离店日期不能为空"));
             }
 
             ReservationDto createdReservation = reservationService.createReservation(reservationDto);
