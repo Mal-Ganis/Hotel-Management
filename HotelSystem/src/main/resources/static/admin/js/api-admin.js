@@ -384,6 +384,9 @@ const logs = {
             return response.data || [];
         }
         throw new Error(response?.message || '获取最近操作日志失败');
+    }
+};
+
 // 系统设置相关
 const settings = {
     async getAll() {
