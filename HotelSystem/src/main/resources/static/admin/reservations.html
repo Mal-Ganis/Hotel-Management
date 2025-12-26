@@ -276,59 +276,119 @@
             }
         }
 
-        function showReservationDetailModal(reservation) {
+        async function showReservationDetailModal(reservation) {
+            // 加载POS消费记录
+            let posConsumptions = [];
+            try {
+                const posResponse = await api.get(`/pos/reservation/${reservation.id}`);
+                if (posResponse && posResponse.success) {
+                    posConsumptions = posResponse.data || [];
+                }
+            } catch (error) {
+                console.error('加载POS消费失败:', error);
+            }
+
+            // 计算总消费
+            const roomAmount = parseFloat(reservation.totalAmount || 0);
+            const posAmount = posConsumptions.reduce((sum, pos) => sum + parseFloat(pos.amount || 0), 0);
+            const totalAmount = roomAmount + posAmount;
+            const paidAmount = parseFloat(reservation.paidAmount || 0);
+            const dueAmount = totalAmount - paidAmount;
+
             const modal = document.createElement('div');
             modal.id = 'reservationDetailModal';
             modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;';
             modal.innerHTML = `
-                <div class="card" style="max-width:700px; width:90%; max-height:90vh; overflow-y:auto;">
+                <div class="card" style="max-width:900px; width:90%; max-height:90vh; overflow-y:auto;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2>预订详情</h2>
+                        <h2>订单详情</h2>
                         <button class="btn btn-secondary" id="closeReservationDetailBtn">关闭</button>
                     </div>
-                    <div class="form-group">
-                        <label><strong>预订号：</strong></label>
-                        <div>${reservation.reservationNumber || '-'}</div>
+                    
+                    <!-- 基本信息 -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <h3 style="margin-top: 0;">基本信息</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div><strong>预订号：</strong>${reservation.reservationNumber || '-'}</div>
+                            <div><strong>宾客：</strong>${reservation.guest ? reservation.guest.fullName : '未知'}</div>
+                            <div><strong>房间：</strong>${reservation.room ? reservation.room.roomNumber + ' (' + reservation.room.roomType + ')' : '未分配'}</div>
+                            <div><strong>状态：</strong><span class="badge badge-${getStatusClass(reservation.status)}">${getStatusText(reservation.status)}</span></div>
+                            <div><strong>入住日期：</strong>${reservation.checkInDate || '-'}</div>
+                            <div><strong>离店日期：</strong>${reservation.checkOutDate || '-'}</div>
+                            <div><strong>入住人数：</strong>${reservation.numberOfGuests || '-'}</div>
+                            <div><strong>创建时间：</strong>${reservation.createdAt ? new Date(reservation.createdAt).toLocaleString() : '-'}</div>
+                        </div>
+                        ${reservation.specialRequests ? `<div style="margin-top: 10px;"><strong>特殊要求：</strong>${reservation.specialRequests}</div>` : ''}
                     </div>
-                    <div class="form-group">
-                        <label><strong>宾客：</strong></label>
-                        <div>${reservation.guest ? reservation.guest.fullName : '未知'}</div>
+
+                    <!-- 费用信息 -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <h3 style="margin-top: 0;">费用信息</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div><strong>客房收入：</strong>¥${roomAmount.toFixed(2)}</div>
+                            <div><strong>POS消费：</strong>¥${posAmount.toFixed(2)}</div>
+                            <div><strong>总消费：</strong>¥${totalAmount.toFixed(2)}</div>
+                            <div><strong>已付金额：</strong>¥${paidAmount.toFixed(2)}</div>
+                            <div><strong>待付金额：</strong><span style="color: ${dueAmount > 0 ? 'red' : 'green'}">¥${dueAmount.toFixed(2)}</span></div>
+                            ${dueAmount < 0 ? `<div><strong>应退金额：</strong><span style="color: green">¥${Math.abs(dueAmount).toFixed(2)}</span></div>` : ''}
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label><strong>房间：</strong></label>
-                        <div>${reservation.room ? reservation.room.roomNumber + ' (' + reservation.room.roomType + ')' : '未分配'}</div>
+
+                    <!-- POS消费管理（仅已入住订单可操作） -->
+                    ${reservation.status === 'CHECKED_IN' || reservation.status === 'CHECKED_OUT' ? `
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0;">POS消费</h3>
+                            <button class="btn btn-primary" onclick="addPosConsumption(${reservation.id})">添加消费</button>
+                        </div>
+                        <div id="posConsumptionsList">
+                            ${posConsumptions.length === 0 ? '<div class="alert">暂无消费记录</div>' : `
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>消费项目</th>
+                                            <th>分类</th>
+                                            <th>金额</th>
+                                            <th>时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${posConsumptions.map(pos => `
+                                            <tr>
+                                                <td>${pos.itemName || '-'}</td>
+                                                <td>${pos.category || '-'}</td>
+                                                <td>¥${parseFloat(pos.amount || 0).toFixed(2)}</td>
+                                                <td>${pos.consumptionDate ? new Date(pos.consumptionDate).toLocaleString() : '-'}</td>
+                                                <td>
+                                                    <button class="btn btn-primary" onclick="editPosConsumption(${pos.id}, ${reservation.id})">编辑</button>
+                                                    <button class="btn btn-danger" onclick="deletePosConsumption(${pos.id}, ${reservation.id})">删除</button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `}
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label><strong>入住日期：</strong></label>
-                        <div>${reservation.checkInDate || '-'}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>离店日期：</strong></label>
-                        <div>${reservation.checkOutDate || '-'}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>入住人数：</strong></label>
-                        <div>${reservation.numberOfGuests || '-'}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>总金额：</strong></label>
-                        <div>¥${reservation.totalAmount || 0}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>已付金额：</strong></label>
-                        <div>¥${reservation.paidAmount || 0}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>状态：</strong></label>
-                        <div><span class="badge badge-${getStatusClass(reservation.status)}">${getStatusText(reservation.status)}</span></div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>特殊要求：</strong></label>
-                        <div>${reservation.specialRequests || '-'}</div>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>创建时间：</strong></label>
-                        <div>${reservation.createdAt ? new Date(reservation.createdAt).toLocaleString() : '-'}</div>
+                    ` : ''}
+
+                    <!-- 状态操作 -->
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 10px;">状态操作</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            ${reservation.status === 'PENDING' ? `
+                                <button class="btn btn-success" onclick="updateReservationStatus(${reservation.id}, 'CONFIRMED')">确认订单</button>
+                                <button class="btn btn-warning" onclick="cancelReservation(${reservation.id})">取消订单</button>
+                            ` : ''}
+                            ${reservation.status === 'CONFIRMED' ? `
+                                <button class="btn btn-success" onclick="updateReservationStatus(${reservation.id}, 'CHECKED_IN')">办理入住</button>
+                                <button class="btn btn-warning" onclick="cancelReservation(${reservation.id})">取消订单</button>
+                            ` : ''}
+                            ${reservation.status === 'CHECKED_IN' ? `
+                                <button class="btn btn-primary" onclick="updateReservationStatus(${reservation.id}, 'CHECKED_OUT')">办理退房</button>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -348,6 +408,129 @@
                     modal.remove();
                 }
             });
+        }
+
+        async function updateReservationStatus(reservationId, newStatus) {
+            if (!confirm(`确定要将订单状态更新为"${getStatusText(newStatus)}"吗？`)) {
+                return;
+            }
+
+            try {
+                const reservation = await reservations.getById(reservationId);
+                if (!reservation) {
+                    alert('获取订单信息失败');
+                    return;
+                }
+
+                // 根据状态执行不同的操作
+                if (newStatus === 'CHECKED_IN') {
+                    await checkIn(reservationId);
+                } else if (newStatus === 'CHECKED_OUT') {
+                    await checkOut(reservationId);
+                } else if (newStatus === 'CONFIRMED') {
+                    // 更新订单状态为已确认
+                    await reservations.update(reservationId, { ...reservation, status: 'CONFIRMED' });
+                    alert('订单已确认');
+                    await loadReservations();
+                } else {
+                    alert('不支持的状态操作');
+                }
+            } catch (error) {
+                console.error('更新订单状态失败:', error);
+                alert('更新失败: ' + error.message);
+            }
+        }
+
+        async function addPosConsumption(reservationId) {
+            const itemName = prompt('请输入消费项目名称:');
+            if (!itemName) return;
+            const category = prompt('请输入消费分类（餐饮/服务/商品等）:') || '其他';
+            const amount = prompt('请输入消费金额:');
+            if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                alert('请输入有效的金额');
+                return;
+            }
+
+            try {
+                const response = await api.post('/pos', {
+                    reservationId: reservationId,
+                    itemName: itemName,
+                    category: category,
+                    amount: parseFloat(amount),
+                    consumptionDate: new Date().toISOString()
+                });
+                if (response && response.success) {
+                    alert('添加消费成功');
+                    // 重新加载订单详情
+                    const reservation = await reservations.getById(reservationId);
+                    if (reservation) {
+                        const modal = document.getElementById('reservationDetailModal');
+                        if (modal) modal.remove();
+                        await showReservationDetailModal(reservation);
+                    }
+                } else {
+                    alert('添加失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('添加消费失败:', error);
+                alert('添加失败: ' + error.message);
+            }
+        }
+
+        async function editPosConsumption(posId, reservationId) {
+            // 简化实现：先删除再添加
+            if (!confirm('确定要编辑此消费记录吗？')) return;
+            const itemName = prompt('请输入消费项目名称:');
+            if (!itemName) return;
+            const category = prompt('请输入消费分类:') || '其他';
+            const amount = prompt('请输入消费金额:');
+            if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                alert('请输入有效的金额');
+                return;
+            }
+
+            try {
+                const response = await api.put(`/pos/${posId}`, {
+                    itemName: itemName,
+                    category: category,
+                    amount: parseFloat(amount)
+                });
+                if (response && response.success) {
+                    alert('更新消费成功');
+                    const reservation = await reservations.getById(reservationId);
+                    if (reservation) {
+                        const modal = document.getElementById('reservationDetailModal');
+                        if (modal) modal.remove();
+                        await showReservationDetailModal(reservation);
+                    }
+                } else {
+                    alert('更新失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('更新消费失败:', error);
+                alert('更新失败: ' + error.message);
+            }
+        }
+
+        async function deletePosConsumption(posId, reservationId) {
+            if (!confirm('确定要删除此消费记录吗？')) return;
+            try {
+                const response = await api.delete(`/pos/${posId}`);
+                if (response && response.success) {
+                    alert('删除成功');
+                    const reservation = await reservations.getById(reservationId);
+                    if (reservation) {
+                        const modal = document.getElementById('reservationDetailModal');
+                        if (modal) modal.remove();
+                        await showReservationDetailModal(reservation);
+                    }
+                } else {
+                    alert('删除失败: ' + (response?.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('删除消费失败:', error);
+                alert('删除失败: ' + error.message);
+            }
         }
 
         async function editReservation(id) {

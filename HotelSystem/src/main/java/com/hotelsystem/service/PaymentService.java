@@ -25,12 +25,17 @@ public class PaymentService {
     private final RoomRepository roomRepository;
 
     public PaymentTransaction createPendingPayment(Long reservationId, BigDecimal amount, String note) {
+        return createPendingPayment(reservationId, amount, note, null);
+    }
+    
+    public PaymentTransaction createPendingPayment(Long reservationId, BigDecimal amount, String note, String paymentMethod) {
         PaymentTransaction t = new PaymentTransaction();
         t.setReservationId(reservationId);
         t.setAmount(amount);
         t.setType(TransactionType.PAYMENT);
         t.setStatus(TransactionStatus.PENDING);
         t.setNote(note);
+        t.setPaymentMethod(paymentMethod);
         return transactionRepository.save(t);
     }
 

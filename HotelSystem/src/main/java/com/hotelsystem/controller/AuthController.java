@@ -8,6 +8,7 @@ import com.hotelsystem.entity.User;
 import com.hotelsystem.security.JwtUtil;
 import com.hotelsystem.service.UserService;
 import com.hotelsystem.repository.GuestRepository;
+import com.hotelsystem.repository.UserRepository;
 import com.hotelsystem.entity.Guest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AuthController {
     private final UserService userService;
     private final com.hotelsystem.service.GuestService guestService;
     private final GuestRepository guestRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
@@ -189,6 +191,93 @@ public class AuthController {
         // 更新密码
         guest.setPassword(passwordEncoder.encode(newPassword));
         guestRepository.save(guest);
+
+        return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("密码重置成功", null));
+    }
+
+    // ========== 员工密保找回相关接口 ==========
+    
+    // 获取员工密保问题
+    @GetMapping("/user/security-question")
+    public ResponseEntity<?> getUserSecurityQuestion(@RequestParam String username) {
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("用户不存在"));
+        }
+
+        if (user.getSecurityQuestion() == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("该用户未设置密保问题"));
+        }
+
+        return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("获取成功", 
+                Map.of("securityQuestion", user.getSecurityQuestion())));
+    }
+
+    // 验证员工密保问题
+    @PostMapping("/user/verify-security-question")
+    public ResponseEntity<?> verifyUserSecurityQuestion(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String securityAnswer = request.get("securityAnswer");
+
+        if (username == null || securityAnswer == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("用户名和密保答案不能为空"));
+        }
+
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("用户不存在"));
+        }
+
+        if (user.getSecurityQuestion() == null || user.getSecurityAnswer() == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("该用户未设置密保问题"));
+        }
+
+        // 验证密保答案
+        if (passwordEncoder.matches(securityAnswer, user.getSecurityAnswer())) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("验证成功", null));
+        } else {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("密保答案错误"));
+        }
+    }
+
+    // 重置员工密码
+    @PostMapping("/user/reset-password")
+    public ResponseEntity<?> resetUserPassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String securityAnswer = request.get("securityAnswer");
+        String newPassword = request.get("newPassword");
+
+        if (username == null || securityAnswer == null || newPassword == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("参数不完整"));
+        }
+
+        if (newPassword.length() < 6) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("密码长度至少6个字符"));
+        }
+
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("用户不存在"));
+        }
+
+        if (user.getSecurityAnswer() == null) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("该用户未设置密保问题"));
+        }
+
+        // 验证密保答案
+        if (!passwordEncoder.matches(securityAnswer, user.getSecurityAnswer())) {
+            return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.error("密保答案错误"));
+        }
+
+        // 更新密码
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
 
         return ResponseEntity.ok(com.hotelsystem.dto.ApiResponse.success("密码重置成功", null));
     }

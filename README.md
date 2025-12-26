@@ -197,6 +197,58 @@ java -jar target/HotelSystem-0.0.1-SNAPSHOT.jar --spring.config.name=application
   - 通知实体和基础服务已实现
   - 支持多种通知类型（预订确认、库存预警、任务分配等）
 
+### 6. 最新功能完善（根据测试反馈）
+
+#### 管理端新增功能
+
+- ✅ **角色化工作台（NFR-12）**：
+  - 前台工作台：显示待办理入住、待办理退房、待处理订单
+  - 房务工作台：显示待清洁房间、清洁任务、维修中房间、库存预警
+  - 经理/管理员工作台：显示经营数据概览、异常提醒、库存预警
+  - 实时任务聚合和提醒
+  - 根据角色自动显示相关待办任务
+
+- ✅ **批量操作功能**：
+  - 批量确认预订（`POST /reservations/batch/confirm`）
+  - 批量取消预订（`POST /reservations/batch/cancel`）
+  - 支持选择多个订单进行批量处理
+  - 批量操作结果反馈（成功数、失败数、错误详情）
+
+- ✅ **支付记录查询**：
+  - 管理端支付记录查询（`GET /payments/admin`）
+    - 支持按支付类型筛选（PAYMENT/REFUND）
+    - 支持按支付状态筛选（PENDING/SUCCESS/FAILED）
+    - 支持按日期范围筛选
+  - 宾客端支付记录查询（`GET /payments/me`）
+    - 查看自己的所有支付记录
+  - 按预订查询支付记录（`GET /payments/reservation/{id}`）
+
+- ✅ **订单详情增强**：
+  - 订单详情接口（`GET /reservations/{id}/details`）
+    - 包含订单基本信息
+    - 订单条款（取消政策、保证金说明、入住须知）
+    - 订单操作历史记录
+    - 支付记录列表
+  - 支持宾客端和管理端查看
+
+- ✅ **审计日志查看**：
+  - 操作日志查询接口（`GET /api/logs`）
+    - 支持分页查询
+    - 支持按用户名、操作类型、时间范围筛选
+    - 最近日志查询（`GET /api/logs/recent`）
+  - 管理端日志查看页面（`/admin/logs.html`）
+
+#### 宾客端新增功能
+
+- ✅ **支付记录查询**：
+  - 我的支付记录页面
+  - 查看所有支付和退款记录
+  - 支付详情展示（金额、状态、时间）
+
+- ✅ **订单详情完善**：
+  - 订单详情查看（包含订单条款、操作历史）
+  - 支付记录关联显示
+
 ## 项目结构
 
 ```
@@ -291,18 +343,36 @@ HotelSystem/
 ### 预订接口
 - `GET /reservations` - 获取所有预订（需管理员权限）
 - `GET /reservations/me` - 获取我的预订（宾客）
+- `GET /reservations/{id}` - 获取预订详情（支持宾客和管理端）
+- `GET /reservations/{id}/details` - 获取订单详情（包含条款、历史、支付记录）
 - `POST /reservations` - 创建预订（宾客端自动从token获取guestId）
 - `POST /reservations/{id}/cancel` - 取消预订
+- `POST /reservations/batch/confirm` - 批量确认预订（管理端）
+- `POST /reservations/batch/cancel` - 批量取消预订（管理端）
 
 ### 前台操作接口
 - `POST /frontdesk/checkin/{reservationId}` - 办理入住（需前台权限）
 - `POST /frontdesk/checkout/{reservationId}` - 办理退房（需前台权限）
+
+### 工作台接口
+- `GET /api/dashboard/workspace` - 获取角色化工作台数据（根据角色返回不同的待办任务）
 
 ### 统计接口
 - `GET /api/statistics/today` - 今日统计（需管理员权限）
 - `GET /api/statistics/date-range` - 日期范围统计（需管理员权限）
 - `GET /api/statistics/room-types` - 房型统计（需管理员权限）
 - `GET /api/statistics/business-analysis` - 完整经营分析（收入、成本、利润）（需管理员权限）
+
+### 审计日志接口
+- `GET /api/logs` - 获取操作日志列表（分页，支持筛选）
+- `GET /api/logs/recent` - 获取最近的日志
+
+### 支付接口
+- `POST /payments/create` - 创建支付交易
+- `POST /payments/callback` - 支付回调
+- `GET /payments/reservation/{reservationId}` - 获取预订的支付记录
+- `GET /payments/me` - 获取我的支付记录（宾客端）
+- `GET /payments/admin` - 管理端查询所有支付记录（支持按类型、状态、日期筛选）
 
 ### 库存管理接口
 - `GET /inventory` - 获取所有库存物品（需房务/管理员权限）

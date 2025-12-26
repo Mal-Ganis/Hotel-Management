@@ -318,14 +318,31 @@
         }
 
         async function updateStatus(roomId, newStatus) {
-            if (!confirm(`确定要将房间状态更新为"${getStatusText(newStatus)}"吗？`)) {
+            // 如果是从待维修到可预订，需要输入维修开销
+            if (newStatus === 'AVAILABLE') {
+                const room = allRooms.find(r => r.id === roomId);
+                if (room && room.status === 'MAINTENANCE') {
+                    const maintenanceCost = prompt('请输入维修开销（元）:');
+                    if (maintenanceCost === null) {
+                        return; // 用户取消
+                    }
+                    if (isNaN(maintenanceCost) || parseFloat(maintenanceCost) < 0) {
+                        alert('请输入有效的维修开销金额');
+                        return;
+                    }
+                    // 这里可以将维修开销记录到系统设置或单独的费用记录中
+                    // 暂时只更新房态，维修开销可以在后续完善中记录到经营分析的成本中
+                }
+            }
+
+            if (!confirm(`确定要将房间状态更新为"${getStatusText(newStatus)}"吗？${newStatus === 'AVAILABLE' ? '\n注意：更新为可预订状态将自动扣除标准消耗品库存。' : ''}`)) {
                 return;
             }
 
             try {
                 const response = await api.put(`/rooms/${roomId}/status?status=${newStatus}`);
                 if (response && response.success) {
-                    alert('房间状态更新成功');
+                    alert('房间状态更新成功' + (newStatus === 'AVAILABLE' ? '，已自动扣除标准消耗品库存' : ''));
                     await loadRooms();
                 } else {
                     alert('更新失败: ' + (response?.message || '未知错误'));

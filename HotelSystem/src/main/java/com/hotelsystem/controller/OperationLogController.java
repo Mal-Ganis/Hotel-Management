@@ -67,5 +67,49 @@ public class OperationLogController {
         ).stream().limit(limit).toList();
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
+    
+    /**
+     * 获取当前用户的操作日志
+     */
+    @GetMapping("/my-logs")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST','HOUSEKEEPING','MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<Page<OperationLog>>> getMyLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        if (username == null) {
+            return ResponseEntity.ok(ApiResponse.error("未找到当前用户"));
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<OperationLog> logs = operationLogRepository.findByUsernameContainingIgnoreCase(username, pageable);
+        return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+    
+    /**
+     * 按操作类型查询日志
+     */
+    @GetMapping("/by-action")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<Page<OperationLog>>> getLogsByAction(
+            @RequestParam String action,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<OperationLog> logs = operationLogRepository.findByActionContainingIgnoreCase(action, pageable);
+        return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+    
+    /**
+     * 获取关键操作详情
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<ApiResponse<OperationLog>> getLogById(@PathVariable Long id) {
+        return operationLogRepository.findById(id)
+                .map(log -> ResponseEntity.ok(ApiResponse.success(log)))
+                .orElse(ResponseEntity.ok(ApiResponse.error("日志不存在")));
+    }
 }
 

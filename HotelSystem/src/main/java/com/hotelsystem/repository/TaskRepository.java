@@ -13,6 +13,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByAssignedToAndStatus(String assignedTo, Task.TaskStatus status);
     List<Task> findByType(Task.TaskType type);
     List<Task> findByStatus(Task.TaskStatus status);
+    List<Task> findByTypeAndStatus(Task.TaskType type, Task.TaskStatus status);
     List<Task> findByDueDateBeforeAndStatus(LocalDateTime date, Task.TaskStatus status);
+    List<Task> findByRoomIdAndTypeAndStatus(Long roomId, Task.TaskType type, Task.TaskStatus status);
 }
 

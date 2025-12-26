@@ -59,7 +59,41 @@
                 </select>
             </div>
             <button type="submit" class="btn btn-primary btn-block">登录</button>
+            <div style="text-align: right; margin-top: 10px;">
+                <a href="#" onclick="showForgotPassword(); return false;" style="color: #667eea; text-decoration: none;">忘记密码？</a>
+            </div>
         </form>
+        
+        <!-- 忘记密码模态框 -->
+        <div id="forgotPasswordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div class="card" style="max-width: 500px; width: 90%; padding: 30px;">
+                <h2 style="margin-top: 0;">找回密码</h2>
+                <div id="forgotPasswordAlert"></div>
+                <form id="forgotPasswordForm">
+                    <div class="form-group">
+                        <label>用户名 <span style="color:red;">*</span></label>
+                        <input type="text" id="forgotUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密保问题</label>
+                        <input type="text" id="forgotSecurityQuestion" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>密保答案 <span style="color:red;">*</span></label>
+                        <input type="text" id="forgotSecurityAnswer" required>
+                    </div>
+                    <div class="form-group">
+                        <label>新密码 <span style="color:red;">*</span></label>
+                        <input type="password" id="forgotNewPassword" required minlength="6">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">重置密码</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeForgotPassword()" style="flex: 1;">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
         <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:5px; font-size:0.9em; color:#666;">
             <p><strong>测试账号：</strong></p>
             <p>管理员: admin / admin123</p>
@@ -89,6 +123,62 @@
                 }
             } catch (error) {
                 alertContainer.innerHTML = `<div class="alert alert-error">登录失败: ${error.message}</div>`;
+            }
+        });
+
+        async function showForgotPassword() {
+            document.getElementById('forgotPasswordModal').style.display = 'flex';
+            document.getElementById('forgotPasswordForm').reset();
+            document.getElementById('forgotPasswordAlert').innerHTML = '';
+        }
+
+        function closeForgotPassword() {
+            document.getElementById('forgotPasswordModal').style.display = 'none';
+        }
+
+        // 获取密保问题
+        document.getElementById('forgotUsername').addEventListener('blur', async function() {
+            const username = this.value;
+            if (!username) return;
+            
+            try {
+                const response = await api.get(`/auth/user/security-question?username=${username}`);
+                if (response && response.success && response.data) {
+                    document.getElementById('forgotSecurityQuestion').value = response.data.securityQuestion || '';
+                } else {
+                    document.getElementById('forgotSecurityQuestion').value = '';
+                }
+            } catch (error) {
+                console.error('获取密保问题失败:', error);
+            }
+        });
+
+        // 提交忘记密码表单
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertContainer = document.getElementById('forgotPasswordAlert');
+            
+            const username = document.getElementById('forgotUsername').value;
+            const securityAnswer = document.getElementById('forgotSecurityAnswer').value;
+            const newPassword = document.getElementById('forgotNewPassword').value;
+
+            try {
+                const response = await api.post('/auth/user/reset-password', {
+                    username: username,
+                    securityAnswer: securityAnswer,
+                    newPassword: newPassword
+                });
+                if (response && response.success) {
+                    alertContainer.innerHTML = '<div class="alert alert-success">密码重置成功，请使用新密码登录</div>';
+                    setTimeout(() => {
+                        closeForgotPassword();
+                    }, 2000);
+                } else {
+                    alertContainer.innerHTML = '<div class="alert alert-error">' + (response?.message || '重置失败') + '</div>';
+                }
+            } catch (error) {
+                console.error('重置密码失败:', error);
+                alertContainer.innerHTML = '<div class="alert alert-error">重置失败: ' + (error.message || '网络错误') + '</div>';
             }
         });
     </script>

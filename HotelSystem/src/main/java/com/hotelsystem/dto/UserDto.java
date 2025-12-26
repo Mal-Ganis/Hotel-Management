@@ -35,6 +35,13 @@ public class UserDto {
     @Size(max = 20, message = "手机号长度不能超过20个字符")
     private String phone;
 
+    @Size(max = 200, message = "密保问题长度不能超过200个字符")
+    private String securityQuestion;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Size(max = 200, message = "密保答案长度不能超过200个字符")
+    private String securityAnswer;
+
     private User.UserRole role;
     private Boolean isActive;
     private LocalDateTime createdAt;
@@ -47,6 +54,7 @@ public class UserDto {
         dto.setFullName(user.getFullName());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
+        dto.setSecurityQuestion(user.getSecurityQuestion());
         dto.setRole(user.getRole());
         dto.setIsActive(user.getIsActive());
         dto.setCreatedAt(user.getCreatedAt());
@@ -61,6 +69,10 @@ public class UserDto {
         user.setFullName(this.fullName);
         user.setEmail(this.email);
         user.setPhone(this.phone);
+        user.setSecurityQuestion(this.securityQuestion);
+        if (this.securityAnswer != null && !this.securityAnswer.isBlank()) {
+            user.setSecurityAnswer(this.securityAnswer); // 注意：实际使用中需要加密
+        }
         user.setRole(this.role != null ? this.role : User.UserRole.RECEPTIONIST);
         user.setIsActive(this.isActive != null ? this.isActive : true);
         return user;
