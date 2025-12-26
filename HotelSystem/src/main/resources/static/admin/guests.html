@@ -72,11 +72,13 @@
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
             <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
             <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html" class="active">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
-            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
+            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -122,24 +124,10 @@
             }
             
             // 根据权限显示/隐藏菜单
-            const userRole = auth.getUserRole();
-            if (userRole === 'ADMIN') {
-                const usersMenuLink = document.getElementById('usersMenuLink');
-                if (usersMenuLink) {
-                    usersMenuLink.style.display = 'block';
-                }
-            }
-            if (userRole === 'ADMIN' || userRole === 'MANAGER') {
-                const logsMenuLink = document.getElementById('logsMenuLink');
-                if (logsMenuLink) {
-                    logsMenuLink.style.display = 'block';
-                }
-            }
+            permissions.hideUnauthorizedMenus();
             
             // 房务不能访问宾客管理 - 直接跳转
-            if (userRole === 'HOUSEKEEPING') {
-                alert('权限不足：房务无法访问宾客管理');
-                window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            if (!permissions.checkPageAccess(['RECEPTIONIST', 'MANAGER', 'ADMIN'], 'http://localhost:8081/admin/dashboard.html')) {
                 return;
             }
 
@@ -170,6 +158,7 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th>宾客ID</th>
                             <th>姓名</th>
                             <th>身份证号</th>
                             <th>手机号</th>
@@ -179,19 +168,23 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${guestList.map(g => `
+                        ${guestList.map(g => {
+                            const guestId = (g.id !== null && g.id !== undefined) ? g.id : null;
+                            return `
                             <tr>
+                                <td>${guestId !== null ? guestId : '<span style="color:#999;">未分配</span>'}</td>
                                 <td>${g.fullName}</td>
                                 <td>${g.idCardNumber}</td>
                                 <td>${g.phone || '-'}</td>
                                 <td>${g.email || '-'}</td>
                                 <td>${g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '-'}</td>
                                 <td>
-                                    <button class="btn btn-primary" onclick="viewGuest(${g.id})">查看</button>
-                                    ${permissions.isManagerOrAdmin() ? `<button class="btn btn-danger" onclick="deleteGuest(${g.id})">删除</button>` : ''}
+                                    ${guestId !== null ? `<button class="btn btn-primary" onclick="viewGuest(${guestId})">查看</button>` : '<span style="color:#999;">ID缺失</span>'}
+                                    ${permissions.isManagerOrAdmin() && guestId !== null ? `<button class="btn btn-danger" onclick="deleteGuest(${guestId})">删除</button>` : ''}
                                 </td>
                             </tr>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -277,6 +270,10 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h2>宾客详情</h2>
                         <button class="btn btn-secondary" id="closeGuestDetailBtn">关闭</button>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>宾客ID：</strong></label>
+                        <div>${(guest.id !== null && guest.id !== undefined) ? guest.id : '<span style="color:#f00;">⚠️ ID缺失，请执行SQL脚本修复数据库</span>'}</div>
                     </div>
                     <div class="form-group">
                         <label><strong>姓名：</strong></label>

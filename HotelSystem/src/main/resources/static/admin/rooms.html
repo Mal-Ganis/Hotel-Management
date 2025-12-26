@@ -67,11 +67,13 @@
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
             <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
             <a href="http://localhost:8081/admin/rooms.html" class="active">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
-            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
+            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -145,21 +147,7 @@
             }
             
             // 根据权限显示/隐藏菜单和按钮
-            const userRole = auth.getUserRole();
-            
-            // 员工管理菜单 - 仅管理员可见
-            if (userRole === 'ADMIN') {
-                const usersMenuLink = document.getElementById('usersMenuLink');
-                if (usersMenuLink) {
-                    usersMenuLink.style.display = 'block';
-                }
-            }
-            if (userRole === 'ADMIN' || userRole === 'MANAGER') {
-                const logsMenuLink = document.getElementById('logsMenuLink');
-                if (logsMenuLink) {
-                    logsMenuLink.style.display = 'block';
-                }
-            }
+            permissions.hideUnauthorizedMenus();
             
             // 房间管理 - 添加按钮仅经理和管理员可见
             if (!permissions.isManagerOrAdmin()) {
@@ -167,17 +155,6 @@
                 if (addRoomBtn) {
                     addRoomBtn.style.display = 'none';
                 }
-            }
-            
-            // 根据角色隐藏无权限的菜单项
-            if (userRole === 'HOUSEKEEPING') {
-                // 房务只能看仪表盘和房间管理
-                const reservationsLink = document.getElementById('reservationsMenuLink');
-                const guestsLink = document.getElementById('guestsMenuLink');
-                const statisticsLink = document.getElementById('statisticsMenuLink');
-                if (reservationsLink) reservationsLink.style.display = 'none';
-                if (guestsLink) guestsLink.style.display = 'none';
-                if (statisticsLink) statisticsLink.style.display = 'none';
             }
 
             // 加载房间列表

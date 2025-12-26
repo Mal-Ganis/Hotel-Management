@@ -86,12 +86,14 @@
         <div class="sidebar">
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
-            <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
-            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
-            <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" class="active">统计报表</a>
-            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
+            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -136,24 +138,10 @@
             }
             
             // 根据权限显示/隐藏菜单和功能
-            const userRole = auth.getUserRole();
-            if (userRole === 'ADMIN') {
-                const usersMenuLink = document.getElementById('usersMenuLink');
-                if (usersMenuLink) {
-                    usersMenuLink.style.display = 'block';
-                }
-            }
-            if (userRole === 'ADMIN' || userRole === 'MANAGER') {
-                const logsMenuLink = document.getElementById('logsMenuLink');
-                if (logsMenuLink) {
-                    logsMenuLink.style.display = 'block';
-                }
-            }
+            permissions.hideUnauthorizedMenus();
             
             // 房务不能访问统计报表 - 直接跳转
-            if (userRole === 'HOUSEKEEPING') {
-                alert('权限不足：房务无法访问统计报表');
-                window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            if (!permissions.checkPageAccess(['RECEPTIONIST', 'MANAGER', 'ADMIN'], 'http://localhost:8081/admin/dashboard.html')) {
                 return;
             }
 

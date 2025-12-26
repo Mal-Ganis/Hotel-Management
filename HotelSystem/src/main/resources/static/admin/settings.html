@@ -98,13 +98,14 @@
         <div class="sidebar">
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
-            <a href="http://localhost:8081/admin/reservations.html">预订管理</a>
-            <a href="http://localhost:8081/admin/room-status.html">房态管理</a>
-            <a href="http://localhost:8081/admin/rooms.html">房间管理</a>
-            <a href="http://localhost:8081/admin/guests.html">宾客管理</a>
-            <a href="http://localhost:8081/admin/statistics.html">统计报表</a>
-            <a href="http://localhost:8081/admin/settings.html" class="active">规则设置</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
+            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
+            <a href="http://localhost:8081/admin/settings.html" class="active" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -164,25 +165,25 @@
     <script src="/admin/js/api-admin.js"></script>
     <script src="/admin/js/permissions.js"></script>
     <script>
-        // 检查登录状态和权限
-        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
-            alert('请先登录');
-            window.location.href = 'http://localhost:8081/admin/login.html';
-        }
-        
-        // 只有经理和管理员可以访问
-        const userRole = auth.getUserRole();
-        if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
-            alert('权限不足：只有经理和管理员可以访问规则设置');
-            window.location.href = 'http://localhost:8081/admin/dashboard.html';
-        }
-        
-        if (userRole === 'ADMIN') {
-            const usersMenuLink = document.getElementById('usersMenuLink');
-            if (usersMenuLink) {
-                usersMenuLink.style.display = 'block';
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查登录状态
+            if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+                alert('请先登录');
+                window.location.href = 'http://localhost:8081/admin/login.html';
+                return;
             }
-        }
+            
+            // 根据权限显示/隐藏菜单
+            permissions.hideUnauthorizedMenus();
+            
+            // 检查页面访问权限 - 只有经理和管理员可以访问
+            if (!permissions.checkPageAccess(['MANAGER', 'ADMIN'], 'http://localhost:8081/admin/dashboard.html')) {
+                return;
+            }
+
+            // 加载设置
+            loadSettings();
+        });
 
         // 加载设置
         async function loadSettings() {
@@ -291,9 +292,6 @@
                 alertContainer.innerHTML = `<div class="alert alert-error">保存失败: ${error.message || '未知错误'}</div>`;
             }
         }
-
-        // 初始化
-        loadSettings();
     </script>
 </body>
 </html>

@@ -146,12 +146,13 @@
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
             <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
-            <a href="http://localhost:8081/admin/room-status.html" class="active">房态管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" class="active" id="roomStatusMenuLink">房态管理</a>
             <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
             <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
+            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -190,26 +191,26 @@
     <script src="/admin/js/api-admin.js"></script>
     <script src="/admin/js/permissions.js"></script>
     <script>
-        // 检查登录状态
-        if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
-            alert('请先登录');
-            window.location.href = 'http://localhost:8081/admin/login.html';
-        }
-        
-        // 根据权限显示/隐藏菜单
-        const userRole = auth.getUserRole();
-        if (userRole === 'ADMIN') {
-            const usersMenuLink = document.getElementById('usersMenuLink');
-            if (usersMenuLink) {
-                usersMenuLink.style.display = 'block';
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查登录状态
+            if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
+                alert('请先登录');
+                window.location.href = 'http://localhost:8081/admin/login.html';
+                return;
             }
-        }
-        
-        // 房务和前台可以访问房态管理
-        if (userRole !== 'HOUSEKEEPING' && userRole !== 'RECEPTIONIST' && userRole !== 'MANAGER' && userRole !== 'ADMIN') {
-            alert('权限不足：只有前台、房务、经理和管理员可以访问房态管理');
-            window.location.href = 'http://localhost:8081/admin/dashboard.html';
-        }
+            
+            // 根据权限显示/隐藏菜单
+            permissions.hideUnauthorizedMenus();
+            
+            // 检查页面访问权限 - 房务、前台、经理和管理员可以访问房态管理
+            const userRole = auth.getUserRole();
+            if (!permissions.checkPageAccess(['HOUSEKEEPING', 'RECEPTIONIST', 'MANAGER', 'ADMIN'], 'http://localhost:8081/admin/dashboard.html')) {
+                return;
+            }
+
+            // 初始化页面
+            loadRooms();
+        });
 
         let allRooms = [];
 
@@ -340,8 +341,6 @@
             e.preventDefault();
             filterAndDisplayRooms();
         });
-
-        loadRooms();
     </script>
 </body>
 </html>

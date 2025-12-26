@@ -65,6 +65,54 @@ const permissions = {
             'HOUSEKEEPING': '房务'
         };
         return roleMap[role] || role;
+    },
+
+    // 统一的菜单显示/隐藏函数 - 根据角色控制菜单可见性
+    hideUnauthorizedMenus() {
+        const userRole = auth.getUserRole();
+        if (!userRole) {
+            console.warn('未获取到用户角色，跳过菜单权限设置');
+            return;
+        }
+
+        // 定义菜单权限规则
+        const menuRules = {
+            'reservationsMenuLink': ['ADMIN', 'MANAGER', 'RECEPTIONIST'], // 预订管理
+            'roomStatusMenuLink': ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'], // 房态管理
+            'roomsMenuLink': ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'], // 房间管理
+            'guestsMenuLink': ['ADMIN', 'MANAGER', 'RECEPTIONIST'], // 宾客管理
+            'statisticsMenuLink': ['ADMIN', 'MANAGER', 'RECEPTIONIST'], // 统计报表
+            'logsMenuLink': ['ADMIN', 'MANAGER'], // 操作日志
+            'settingsMenuLink': ['ADMIN', 'MANAGER'], // 规则设置
+            'usersMenuLink': ['ADMIN'] // 员工管理
+        };
+
+        // 根据权限规则显示/隐藏菜单
+        Object.keys(menuRules).forEach(menuId => {
+            const menuElement = document.getElementById(menuId);
+            if (menuElement) {
+                const allowedRoles = menuRules[menuId];
+                if (allowedRoles.includes(userRole)) {
+                    menuElement.style.display = 'block';
+                } else {
+                    menuElement.style.display = 'none';
+                }
+            } else {
+                // 如果菜单项不存在，记录警告但不影响其他菜单
+                console.warn(`菜单项 ${menuId} 不存在`);
+            }
+        });
+    },
+
+    // 检查页面访问权限，无权限则跳转
+    checkPageAccess(allowedRoles, redirectUrl = '/admin/dashboard.html') {
+        const userRole = auth.getUserRole();
+        if (!allowedRoles.includes(userRole)) {
+            alert(`权限不足：您无权访问此页面。`);
+            window.location.href = redirectUrl;
+            return false;
+        }
+        return true;
     }
 };
 

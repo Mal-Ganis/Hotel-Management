@@ -111,11 +111,13 @@
             <h3>菜单</h3>
             <a href="http://localhost:8081/admin/dashboard.html">仪表盘</a>
             <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
             <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
             <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
             <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
             <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
-            <a href="http://localhost:8081/admin/users.html" class="active">员工管理</a>
+            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+            <a href="http://localhost:8081/admin/users.html" class="active" id="usersMenuLink">员工管理</a>
         </div>
 
         <div class="main-content">
@@ -186,14 +188,18 @@
     <script src="/admin/js/permissions.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // 检查登录状态和权限 - 只有管理员可以访问
+            // 检查登录状态
             if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
                 alert('请先登录');
                 window.location.href = 'http://localhost:8081/admin/login.html';
                 return;
-            } else if (auth.getUserRole() !== 'ADMIN') {
-                alert('权限不足：只有管理员可以访问员工管理');
-                window.location.href = 'http://localhost:8081/admin/dashboard.html';
+            }
+            
+            // 根据权限显示/隐藏菜单
+            permissions.hideUnauthorizedMenus();
+            
+            // 检查页面访问权限 - 只有管理员可以访问
+            if (!permissions.checkPageAccess(['ADMIN'], 'http://localhost:8081/admin/dashboard.html')) {
                 return;
             }
 
