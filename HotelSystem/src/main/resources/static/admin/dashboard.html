@@ -63,6 +63,66 @@
             font-size: 2em;
             font-weight: bold;
         }
+        .todo-section {
+            margin-top: 30px;
+        }
+        .todo-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .todo-card h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+        .todo-item {
+            padding: 10px;
+            background: white;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .todo-item:hover {
+            background: #f0f0f0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .badge-warning {
+            background: #ffc107;
+            color: #000;
+        }
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .alert-badge {
+            position: relative;
+            display: inline-block;
+        }
+        .alert-badge::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 10px;
+            height: 10px;
+            background: #dc3545;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
@@ -79,42 +139,25 @@
     <div class="dashboard-container">
         <div class="sidebar">
             <h3>菜单</h3>
-            <a href="http://localhost:8081/admin/dashboard.html" class="active">仪表盘</a>
-            <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
-            <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
-            <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
-            <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
-            <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
-            <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink">操作日志</a>
-            <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
-            <a href="http://localhost:8081/admin/users.html" id="usersMenuLink">员工管理</a>
+                <a href="http://localhost:8081/admin/dashboard.html" class="active">仪表盘</a>
+                <a href="http://localhost:8081/admin/reservations.html" id="reservationsMenuLink">预订管理</a>
+                <a href="http://localhost:8081/admin/room-status.html" id="roomStatusMenuLink">房态管理</a>
+                <a href="http://localhost:8081/admin/rooms.html" id="roomsMenuLink">房间管理</a>
+                <a href="http://localhost:8081/admin/guests.html" id="guestsMenuLink">宾客管理</a>
+                <a href="http://localhost:8081/admin/statistics.html" id="statisticsMenuLink">统计报表</a>
+                <a href="http://localhost:8081/admin/logs.html" id="logsMenuLink" style="display:none;">操作日志</a>
+                <a href="http://localhost:8081/admin/settings.html" id="settingsMenuLink">规则设置</a>
+                <a href="http://localhost:8081/admin/profile.html">个人中心</a>
+                <a href="http://localhost:8081/admin/users.html" id="usersMenuLink" style="display:none;">员工管理</a>
         </div>
 
         <div class="main-content">
-            <h2>仪表盘</h2>
+            <h2>工作台</h2>
             <div id="statsContainer" class="stats-grid">
                 <div class="loading">加载中...</div>
             </div>
-            <div id="contentArea">
-                <h3>快捷操作</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
-                    <a href="http://localhost:8081/admin/reservations.html" class="card" style="padding: 20px; text-decoration: none; color: inherit; display: block;">
-                        <h4>预订管理</h4>
-                        <p>查看和管理所有预订</p>
-                    </a>
-                    <a href="http://localhost:8081/admin/rooms.html" class="card" style="padding: 20px; text-decoration: none; color: inherit; display: block;">
-                        <h4>房间管理</h4>
-                        <p>管理房间信息和状态</p>
-                    </a>
-                    <a href="http://localhost:8081/admin/guests.html" class="card" style="padding: 20px; text-decoration: none; color: inherit; display: block;">
-                        <h4>宾客管理</h4>
-                        <p>查看和管理宾客信息</p>
-                    </a>
-                    <a href="http://localhost:8081/admin/statistics.html" class="card" style="padding: 20px; text-decoration: none; color: inherit; display: block;">
-                        <h4>统计报表</h4>
-                        <p>查看业务统计数据</p>
-                    </a>
-                </div>
+            <div id="workspaceContent" class="todo-section">
+                <div class="loading">加载工作台数据...</div>
             </div>
         </div>
     </div>
@@ -122,6 +165,8 @@
     <script src="/admin/js/api-admin.js"></script>
     <script src="/admin/js/permissions.js"></script>
     <script>
+        let currentRole = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             // 检查登录状态
             if (!auth.isAuthenticated() || auth.getUserRole() === 'GUEST') {
@@ -130,11 +175,14 @@
                 return;
             }
             
+            currentRole = auth.getUserRole();
+            
             // 根据权限显示/隐藏菜单
             permissions.hideUnauthorizedMenus();
 
-            // 加载统计数据
+            // 加载统计数据和工作台数据
             loadStatistics();
+            loadWorkspace();
         });
 
         async function loadStatistics() {
@@ -149,6 +197,21 @@
             } catch (error) {
                 console.error('加载统计失败:', error);
                 container.innerHTML = `<div class="alert alert-error">加载统计失败: ${error.message || '网络错误'}</div>`;
+            }
+        }
+
+        async function loadWorkspace() {
+            const container = document.getElementById('workspaceContent');
+            try {
+                const response = await api.get('/api/dashboard/workspace');
+                if (response && response.success) {
+                    displayWorkspace(response.data);
+                } else {
+                    container.innerHTML = `<div class="alert alert-error">加载工作台失败: ${response?.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                console.error('加载工作台失败:', error);
+                container.innerHTML = `<div class="alert alert-error">加载工作台失败: ${error.message || '网络错误'}</div>`;
             }
         }
 
@@ -180,6 +243,197 @@
                     <div class="value">${(stats.occupancyRate || 0).toFixed(1)}%</div>
                 </div>
             `;
+        }
+
+        function displayWorkspace(workspace) {
+            const container = document.getElementById('workspaceContent');
+            const role = workspace.role;
+            const data = workspace.data || {};
+
+            let html = '';
+
+            if (role === 'RECEPTIONIST') {
+                // 前台工作台
+                html += `<h3>待办任务</h3>`;
+                
+                if (data.pendingCheckInCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>待办理入住 <span class="badge badge-warning">${data.pendingCheckInCount}</span></h4>`;
+                    if (data.pendingCheckIns && data.pendingCheckIns.length > 0) {
+                        data.pendingCheckIns.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.reservationNumber || ''}</strong>
+                                    <span style="margin-left: 10px;">${item.guestName || ''}</span>
+                                    <span style="margin-left: 10px; color: #666;">${item.roomNumber || '未分配'}</span>
+                                </div>
+                                <div>
+                                    <span class="badge badge-info">${item.checkInDate || ''}</span>
+                                    <a href="http://localhost:8081/admin/reservations.html" style="margin-left: 10px; color: #667eea;">处理</a>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+                if (data.pendingCheckOutCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>待办理退房 <span class="badge badge-warning">${data.pendingCheckOutCount}</span></h4>`;
+                    if (data.pendingCheckOuts && data.pendingCheckOuts.length > 0) {
+                        data.pendingCheckOuts.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.reservationNumber || ''}</strong>
+                                    <span style="margin-left: 10px;">${item.guestName || ''}</span>
+                                    <span style="margin-left: 10px; color: #666;">${item.roomNumber || ''}</span>
+                                </div>
+                                <div>
+                                    <span class="badge badge-info">${item.checkOutDate || ''}</span>
+                                    <a href="http://localhost:8081/admin/reservations.html" style="margin-left: 10px; color: #667eea;">处理</a>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+                if (data.pendingReservationCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>待处理订单 <span class="badge badge-warning">${data.pendingReservationCount}</span></h4>`;
+                    if (data.pendingReservations && data.pendingReservations.length > 0) {
+                        data.pendingReservations.slice(0, 5).forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.reservationNumber || ''}</strong>
+                                    <span style="margin-left: 10px;">${item.guestName || ''}</span>
+                                </div>
+                                <div>
+                                    <a href="http://localhost:8081/admin/reservations.html" style="color: #667eea;">查看</a>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+            } else if (role === 'HOUSEKEEPING') {
+                // 房务工作台
+                html += `<h3>待办任务</h3>`;
+                
+                if (data.cleaningRoomCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>待清洁房间 <span class="badge badge-warning">${data.cleaningRoomCount}</span></h4>`;
+                    if (data.cleaningRooms && data.cleaningRooms.length > 0) {
+                        data.cleaningRooms.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.roomNumber || ''}</strong>
+                                    <span style="margin-left: 10px; color: #666;">${item.roomType || ''}</span>
+                                </div>
+                                <div>
+                                    <a href="http://localhost:8081/admin/room-status.html" style="color: #667eea;">处理</a>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+                if (data.cleaningTaskCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>清洁任务 <span class="badge badge-warning">${data.cleaningTaskCount}</span></h4>`;
+                    if (data.cleaningTasks && data.cleaningTasks.length > 0) {
+                        data.cleaningTasks.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.title || ''}</strong>
+                                    <span style="margin-left: 10px; color: #666;">${item.roomNumber || ''}</span>
+                                </div>
+                                <div>
+                                    <span class="badge badge-info">优先级 ${item.priority || 5}</span>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+                if (data.lowStockCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>库存预警 <span class="badge badge-danger">${data.lowStockCount}</span></h4>`;
+                    if (data.lowStockItems && data.lowStockItems.length > 0) {
+                        data.lowStockItems.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.itemName || ''}</strong>
+                                    <span style="margin-left: 10px; color: #666;">当前: ${item.currentQuantity || 0} ${item.unit || ''}</span>
+                                </div>
+                                <div>
+                                    <span class="badge badge-danger">低于安全库存</span>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+
+            } else if (role === 'MANAGER' || role === 'ADMIN') {
+                // 经理/管理员工作台
+                html += `<h3>经营概览</h3>`;
+                
+                if (data.businessOverview) {
+                    const overview = data.businessOverview;
+                    html += `<div class="todo-card">
+                        <h4>今日收入</h4>
+                        <div style="font-size: 1.5em; color: #667eea; margin: 10px 0;">
+                            ¥${(overview.todayRevenue || 0).toFixed(2)}
+                        </div>
+                    </div>`;
+
+                    if (overview.alerts && overview.alerts.length > 0) {
+                        html += `<div class="todo-card">
+                            <h4>异常提醒 <span class="badge badge-danger">${overview.alerts.length}</span></h4>`;
+                        overview.alerts.forEach(alert => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${alert.title || ''}</strong>
+                                    <span style="margin-left: 10px; color: #666;">${alert.message || ''}</span>
+                                </div>
+                                <div>
+                                    <span class="badge badge-danger">${alert.count || 0}</span>
+                                </div>
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+                }
+
+                if (data.lowStockCount > 0) {
+                    html += `<div class="todo-card">
+                        <h4>库存预警 <span class="badge badge-danger">${data.lowStockCount}</span></h4>`;
+                    if (data.lowStockItems && data.lowStockItems.length > 0) {
+                        data.lowStockItems.forEach(item => {
+                            html += `<div class="todo-item">
+                                <div>
+                                    <strong>${item.itemName || ''}</strong>
+                                    <span style="margin-left: 10px; color: #666;">当前: ${item.currentQuantity || 0} ${item.unit || ''}</span>
+                                </div>
+                                <div>
+                                    <a href="http://localhost:8081/admin/inventory.html" style="color: #667eea;">查看</a>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+            }
+
+            if (!html) {
+                html = '<p>暂无待办任务</p>';
+            }
+
+            container.innerHTML = html;
         }
     </script>
 </body>

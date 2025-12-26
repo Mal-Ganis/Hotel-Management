@@ -82,9 +82,50 @@ public class UserService {
         if (userDto.getPassword() != null && !userDto.getPassword().isBlank()) {
             existingUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
+        
+        // 如果更新了密保问题，则更新
+        if (userDto.getSecurityQuestion() != null) {
+            existingUser.setSecurityQuestion(userDto.getSecurityQuestion());
+        }
+        
+        // 如果更新了密保答案，则加密存储
+        if (userDto.getSecurityAnswer() != null && !userDto.getSecurityAnswer().isBlank()) {
+            existingUser.setSecurityAnswer(passwordEncoder.encode(userDto.getSecurityAnswer()));
+        }
 
         User updatedUser = userRepository.save(existingUser);
         return UserDto.fromEntity(updatedUser);
+    }
+    
+    // 更新当前用户的密码（需要验证旧密码）
+    public void updateCurrentUserPassword(String username, String oldPassword, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        // 验证旧密码
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("原密码错误");
+        }
+        
+        // 更新密码
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+    
+    // 更新当前用户的密保（需要验证密码）
+    public void updateCurrentUserSecurity(String username, String password, String securityQuestion, String securityAnswer) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        // 验证密码
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("密码错误");
+        }
+        
+        // 更新密保
+        user.setSecurityQuestion(securityQuestion);
+        user.setSecurityAnswer(passwordEncoder.encode(securityAnswer));
+        userRepository.save(user);
     }
 
     @com.hotelsystem.audit.Auditable(action = "UPDATE_USER")

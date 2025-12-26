@@ -27,6 +27,9 @@ public class PaymentTransaction {
 
     private String providerTransactionId; // 第三方支付返回的交易号
 
+    @Column(length = 20)
+    private String paymentMethod; // 支付方式：ALIPAY, WECHAT, CASH, CARD
+
     private String note;
 
     @Column(name = "created_at")

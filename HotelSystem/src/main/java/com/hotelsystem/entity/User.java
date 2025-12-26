@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -36,6 +35,14 @@ public class User {
 
     @Size(max = 20)
     private String phone;
+
+    @Size(max = 200)
+    @Column(name = "security_question")
+    private String securityQuestion; // 密保问题
+
+    @Size(max = 200)
+    @Column(name = "security_answer")
+    private String securityAnswer; // 密保答案（加密存储）
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

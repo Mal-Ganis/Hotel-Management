@@ -103,9 +103,33 @@ public class InventoryController {
 
     @GetMapping("/low-stock")
     @PreAuthorize("hasAnyRole('HOUSEKEEPING','MANAGER','ADMIN')")
-    public ResponseEntity<ApiResponse<List<InventoryDto>>> getLowStockItems() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLowStockItems() {
         List<InventoryDto> items = inventoryService.getLowStockItems();
-        return ResponseEntity.ok(ApiResponse.success(items));
+        
+        // 增强预警展示
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("items", items);
+        result.put("count", items.size());
+        
+        // 按紧急程度分类
+        List<InventoryDto> urgent = new java.util.ArrayList<>();
+        List<InventoryDto> warning = new java.util.ArrayList<>();
+        
+        for (InventoryDto item : items) {
+            // 如果当前库存为0或接近0，标记为紧急
+            if (item.getCurrentQuantity().compareTo(java.math.BigDecimal.valueOf(0.1)) <= 0) {
+                urgent.add(item);
+            } else {
+                warning.add(item);
+            }
+        }
+        
+        result.put("urgent", urgent);
+        result.put("warning", warning);
+        result.put("urgentCount", urgent.size());
+        result.put("warningCount", warning.size());
+        
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/{id}/transactions")

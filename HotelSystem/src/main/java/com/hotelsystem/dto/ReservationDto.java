@@ -13,7 +13,7 @@ public class ReservationDto {
     private Long id;
     private String reservationNumber;
 
-    @NotNull(message = "宾客ID不能为空")
+    // guestId对于宾客用户会从token中自动获取，对于员工创建预订时必须提供
     private Long guestId;
 
     private Long roomId;
